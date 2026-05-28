@@ -14,9 +14,11 @@
     "db:seed": "pnpm --filter @controle-fazendas/database seed",
     "db:studio": "pnpm --filter @controle-fazendas/database studio",
     "railway:build": "pnpm db:generate && pnpm turbo run build --filter=@controle-fazendas/api...",
+    "railway:build:web": "pnpm turbo run build --filter=@controle-fazendas/web...",
     "railway:migrate": "pnpm --filter @controle-fazendas/database migrate:deploy",
     "railway:seed": "pnpm db:seed",
-    "railway:start": "node apps/api/dist/main.js"
+    "railway:start": "node apps/api/dist/main.js",
+    "railway:start:web": "pnpm --filter @controle-fazendas/web exec next start -p ${PORT:-3000} -H 0.0.0.0"
   },
   "devDependencies": {
     "prettier": "^3.4.2",

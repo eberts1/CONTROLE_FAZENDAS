@@ -1,0 +1,11 @@
+# Deploy do frontend Next.js (monorepo pnpm)
+# No Railway: serviço @controle-fazendas/web → Settings → Config file = railway.web.toml
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "pnpm install && pnpm railway:build:web"
+
+[deploy]
+startCommand = "pnpm railway:start:web"
+healthcheckPath = "/login"
+healthcheckTimeout = 120
