@@ -1,0 +1,379 @@
+'use client';
+
+import {
+  AnimalAbczProfileDto,
+  AnimalDto,
+  AnimalSex,
+  AnimalStatus,
+  GenealogyPedigreeEntry,
+  UpdateAnimalInput,
+} from '@controle-fazendas/shared';
+import { AbczGenealogyTree, hasPedigreeTree } from '@/components/abcz-genealogy-tree';
+import { UseFormReturn } from 'react-hook-form';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { animalSexLabels, animalStatusLabels, formatDateOnly } from '@/lib/utils';
+import Link from 'next/link';
+import { ExternalLink, GitBranch } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { AnimalParentSelects } from '@/components/animal-parent-selects';
+
+interface AnimalDetailSectionsProps {
+  animal: AnimalDto;
+  animals: AnimalDto[];
+  profile: AnimalAbczProfileDto | null | undefined;
+  profileLoading?: boolean;
+  missingProfileSnapshot?: boolean;
+  editing: boolean;
+  form: UseFormReturn<UpdateAnimalInput>;
+}
+
+function DetailField({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+      <dd className="text-sm">{value ?? '—'}</dd>
+    </div>
+  );
+}
+
+function GenealogyList({ entries }: { entries: GenealogyPedigreeEntry[] }) {
+  return (
+    <ul className="divide-y rounded-md border text-sm">
+      {entries.map((entry, index) => (
+        <li key={index} className="grid gap-1 px-3 py-2 sm:grid-cols-3">
+          <span className="font-medium text-muted-foreground">{entry.relationship}</span>
+          <span>{entry.registration || '—'}</span>
+          <span>{entry.name || '—'}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function EvaluationSection({ profile }: { profile: AnimalAbczProfileDto }) {
+  const evaluations = profile.geneticEvaluations;
+
+  if (evaluations.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Sem avaliação genética disponível na ABCZ para este animal.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {evaluations.map((evaluation) => (
+        <div key={evaluation.id} className="space-y-2 rounded-md border p-4">
+          <p className="text-xs text-muted-foreground">
+            {[evaluation.period, evaluation.evaluationKind].filter(Boolean).join(' · ') ||
+              'Avaliação genética'}
+          </p>
+          <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+            {evaluation.iabcz && (
+              <div>
+                <dt className="text-xs text-muted-foreground">iABCZ</dt>
+                <dd className="font-medium">{evaluation.iabcz}</dd>
+              </div>
+            )}
+            {evaluation.deca && (
+              <div>
+                <dt className="text-xs text-muted-foreground">DECA</dt>
+                <dd className="font-medium">{evaluation.deca}</dd>
+              </div>
+            )}
+            {evaluation.inbreedingF && (
+              <div>
+                <dt className="text-xs text-muted-foreground">Endogamia (F)</dt>
+                <dd className="font-medium">{evaluation.inbreedingF}</dd>
+              </div>
+            )}
+          </dl>
+          {evaluation.deps.length > 0 && (
+            <div className="max-h-64 overflow-y-auto rounded border">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="px-2 py-1.5 text-left">DEP</th>
+                    <th className="px-2 py-1.5 text-right">Valor</th>
+                    <th className="px-2 py-1.5 text-right">AC%</th>
+                    <th className="px-2 py-1.5 text-right">DECA</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {evaluation.deps.map((dep, depIndex) => (
+                    <tr key={depIndex} className="border-t">
+                      <td className="px-2 py-1">{dep.description}</td>
+                      <td className="px-2 py-1 text-right font-mono">{dep.dep}</td>
+                      <td className="px-2 py-1 text-right">{dep.accuracy ?? '—'}</td>
+                      <td className="px-2 py-1 text-right">{dep.deca ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function AnimalDetailSections({
+  animal,
+  animals,
+  profile,
+  profileLoading,
+  missingProfileSnapshot,
+  editing,
+  form,
+}: AnimalDetailSectionsProps) {
+  const { register, watch, setValue, formState: { errors } } = form;
+
+  const genealogyEntries = profile?.genealogy ?? [];
+  const showPedigree = genealogyEntries.length > 0 && hasPedigreeTree(genealogyEntries);
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Dados do animal</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {editing ? (
+            <form className="grid gap-4 md:grid-cols-2" id="animal-edit-form">
+              <div className="space-y-2">
+                <Label htmlFor="tag">Identificação (brinco)</Label>
+                <Input id="tag" {...register('tag')} />
+                {errors.tag && <p className="text-sm text-destructive">{errors.tag.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome / apelido</Label>
+                <Input id="name" {...register('name')} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="breed">Raça</Label>
+                <Input id="breed" {...register('breed')} />
+              </div>
+              <div className="space-y-2">
+                <Label>Sexo</Label>
+                <Select
+                  value={watch('sex') ?? animal.sex}
+                  onValueChange={(v) => setValue('sex', v as AnimalSex)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(animalSexLabels).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="birthDate">Data de nascimento</Label>
+                <Input id="birthDate" type="date" {...register('birthDate')} />
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={watch('status') ?? animal.status}
+                  onValueChange={(v) => setValue('status', v as AnimalStatus)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(animalStatusLabels).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="notes">Observações</Label>
+                <Textarea id="notes" {...register('notes')} />
+              </div>
+            </form>
+          ) : (
+            <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <DetailField label="Identificação (brinco)" value={animal.tag} />
+              <DetailField label="Nome / apelido" value={animal.name} />
+              <DetailField label="Raça" value={animal.breed} />
+              <DetailField label="Sexo" value={animalSexLabels[animal.sex]} />
+              <DetailField label="Status" value={animalStatusLabels[animal.status]} />
+              <DetailField
+                label="Data de nascimento"
+                value={animal.birthDate ? formatDateOnly(animal.birthDate) : null}
+              />
+              <DetailField
+                label="Registro ABCZ"
+                value={
+                  animal.abczSerie && animal.abczRgn
+                    ? `${animal.abczSerie} ${animal.abczRgn}`
+                    : null
+                }
+              />
+              {animal.abczRgd && <DetailField label="RGD" value={animal.abczRgd} />}
+              {animal.abczSyncedAt && (
+                <DetailField
+                  label="Sincronizado ABCZ em"
+                  value={formatDateOnly(animal.abczSyncedAt)}
+                />
+              )}
+              <div className="space-y-1 sm:col-span-2 lg:col-span-3">
+                <dt className="text-xs font-medium text-muted-foreground">Observações</dt>
+                <dd className="text-sm whitespace-pre-wrap">{animal.notes || '—'}</dd>
+              </div>
+            </dl>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <CardTitle className="text-lg">Parentesco na fazenda</CardTitle>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/dashboard/parentesco?animalId=${animal.id}`}>
+              <GitBranch className="mr-2 h-4 w-4" />
+              Ver filhos e netos
+            </Link>
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {editing ? (
+            <AnimalParentSelects
+              animals={animals}
+              excludeAnimalId={animal.id}
+              sireId={watch('sireId')}
+              damId={watch('damId')}
+              onSireChange={(v) => setValue('sireId', v)}
+              onDamChange={(v) => setValue('damId', v)}
+            />
+          ) : (
+            <dl className="grid gap-4 sm:grid-cols-2">
+              <DetailField
+                label="Pai"
+                value={
+                  animal.sire ? (
+                    <Link href={`/dashboard/animais/${animal.sire.id}`} className="text-primary hover:underline">
+                      {animal.sire.tag}
+                      {animal.sire.name ? ` — ${animal.sire.name}` : ''}
+                    </Link>
+                  ) : (
+                    '—'
+                  )
+                }
+              />
+              <DetailField
+                label="Mãe"
+                value={
+                  animal.dam ? (
+                    <Link href={`/dashboard/animais/${animal.dam.id}`} className="text-primary hover:underline">
+                      {animal.dam.tag}
+                      {animal.dam.name ? ` — ${animal.dam.name}` : ''}
+                    </Link>
+                  ) : (
+                    '—'
+                  )
+                }
+              />
+            </dl>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Genealogia</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {profileLoading && (
+            <p className="text-sm text-muted-foreground">Carregando genealogia...</p>
+          )}
+          {!profileLoading && !animal.hasAbczProfile && (
+            <p className="text-sm text-muted-foreground">
+              {missingProfileSnapshot
+                ? 'A genealogia exibida na consulta ABCZ não foi gravada no banco desta aplicação. Use o botão acima para buscar na ABCZ e salvar localmente — os detalhes passam a ler só do banco, sem nova consulta.'
+                : 'Nenhuma genealogia salva no banco. Vincule um registro ABCZ no cadastro do animal.'}
+            </p>
+          )}
+          {!profileLoading && animal.hasAbczProfile && !profile && (
+            <p className="text-sm text-destructive">
+              Não foi possível carregar a genealogia. Tente sincronizar novamente pela ABCZ.
+            </p>
+          )}
+          {profile && genealogyEntries.length === 0 && (
+            <p className="text-sm text-muted-foreground">Genealogia não disponível na ABCZ.</p>
+          )}
+          {profile && (
+            <p className="text-xs text-muted-foreground">
+              Dados do banco local
+              {profile.fetchedAt ? ` · consulta gravada em ${formatDateOnly(profile.fetchedAt)}` : ''}
+            </p>
+          )}
+          {profile && genealogyEntries.length > 0 && (
+            <>
+              {profile.header.breeder && (
+                <p className="text-sm">
+                  <span className="text-muted-foreground">Criador: </span>
+                  {profile.header.breeder}
+                </p>
+              )}
+              {showPedigree ? (
+                <AbczGenealogyTree entries={genealogyEntries} />
+              ) : (
+                <GenealogyList entries={genealogyEntries} />
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Avaliação</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {profileLoading && (
+            <p className="text-sm text-muted-foreground">Carregando avaliação genética...</p>
+          )}
+          {!profileLoading && !animal.hasAbczProfile && (
+            <p className="text-sm text-muted-foreground">
+              {missingProfileSnapshot
+                ? 'A avaliação genética da consulta ainda não está no banco local. Salve o perfil ABCZ com o botão acima.'
+                : 'Nenhuma avaliação genética salva no banco para este animal.'}
+            </p>
+          )}
+          {!profileLoading && animal.hasAbczProfile && !profile && (
+            <p className="text-sm text-destructive">Não foi possível carregar a avaliação.</p>
+          )}
+          {profile && <EvaluationSection profile={profile} />}
+          {profile?.sourceUrl && (
+            <Button variant="outline" size="sm" asChild>
+              <a href={profile.sourceUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Abrir consulta na ABCZ
+              </a>
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

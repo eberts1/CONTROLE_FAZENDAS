@@ -1,0 +1,39 @@
+{
+  "name": "@controle-fazendas/shared",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./animal-identity": {
+      "types": "./dist/animal-identity.d.ts",
+      "import": "./dist/animal-identity.js",
+      "require": "./dist/animal-identity.js",
+      "default": "./dist/animal-identity.js"
+    },
+    "./enums": {
+      "types": "./dist/enums.d.ts",
+      "import": "./dist/enums.js",
+      "require": "./dist/enums.js",
+      "default": "./dist/enums.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo \"No lint configured\""
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

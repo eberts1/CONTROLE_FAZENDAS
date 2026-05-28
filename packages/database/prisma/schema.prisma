@@ -1,0 +1,278 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  OPERATOR
+}
+
+enum FarmRole {
+  OWNER
+  MANAGER
+  MEMBER
+}
+
+enum AreaType {
+  PASTO
+  TALHAO
+  GALPAO
+  OUTRO
+}
+
+enum ProcessCategory {
+  PLANTIO
+  COLHEITA
+  MANEJO
+  IRRIGACAO
+  OUTRO
+}
+
+enum AnimalSex {
+  MACHO
+  FEMEA
+}
+
+enum AnimalStatus {
+  ATIVO
+  VENDIDO
+  MORTO
+  OUTRO
+}
+
+enum GeneticMaterialType {
+  SEMEN
+  EMBRIAO
+}
+
+enum StockMovementType {
+  ENTRADA
+  SAIDA
+  AJUSTE
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(OPERATOR)
+  farms          FarmUser[]
+  records        ProcessRecord[]
+  stockMovements StockMovement[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model Farm {
+  id        String    @id @default(uuid())
+  name      String
+  location  String?
+  users       FarmUser[]
+  areas       Area[]
+  processes   Process[]
+  animals     Animal[]
+  geneticLots GeneticLot[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model FarmUser {
+  userId    String
+  farmId    String
+  role      FarmRole @default(MEMBER)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  farm      Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, farmId])
+  @@index([farmId])
+}
+
+model Area {
+  id          String          @id @default(uuid())
+  farmId      String
+  name        String
+  type        AreaType
+  hectares    Float?
+  description String?
+  farm        Farm            @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  records     ProcessRecord[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([farmId])
+}
+
+model Process {
+  id          String          @id @default(uuid())
+  farmId      String
+  name        String
+  category    ProcessCategory
+  description String?
+  farm        Farm            @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  records     ProcessRecord[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([farmId])
+}
+
+model ProcessRecord {
+  id          String   @id @default(uuid())
+  processId   String
+  areaId      String
+  performedAt DateTime
+  notes       String?
+  createdById String
+  process     Process  @relation(fields: [processId], references: [id], onDelete: Cascade)
+  area        Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([processId])
+  @@index([areaId])
+  @@index([createdById])
+}
+
+// Hub central — futuras relações: vendas, despesas, manejo, extrações
+model Animal {
+  id                 String          @id @default(uuid())
+  farmId             String
+  tag                String
+  name               String?
+  breed              String?
+  sex                AnimalSex
+  birthDate          DateTime?
+  status             AnimalStatus    @default(ATIVO)
+  notes              String?
+  abczAnimalId       String?
+  abczSerie          String?
+  abczRgn            String?
+  abczRgd            String?
+  abczBreedCode      Int?
+  abczCategoryCode   Int?
+  abczSyncedAt       DateTime?
+  abczSourceUrl      String?
+  abczOwnerId        String?
+  sireId             String?
+  damId              String?
+  farm               Farm            @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  sire               Animal?         @relation("AnimalSire", fields: [sireId], references: [id], onDelete: SetNull)
+  dam                Animal?         @relation("AnimalDam", fields: [damId], references: [id], onDelete: SetNull)
+  siredOffspring     Animal[]        @relation("AnimalSire")
+  dammedOffspring    Animal[]        @relation("AnimalDam")
+  geneticLots        GeneticLot[]
+  abczSnapshot       AnimalAbczSnapshot?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@unique([farmId, tag])
+  @@index([farmId])
+  @@index([sireId])
+  @@index([damId])
+}
+
+model AnimalAbczSnapshot {
+  id                  String                  @id @default(uuid())
+  animalId            String                  @unique
+  permissions         String?
+  fetchedAt           DateTime
+  sourceUrl           String?
+  coat                String?
+  city                String?
+  state               String?
+  situation           String?
+  owner               String?
+  farmName            String?
+  breeder             String?
+  reproductiveMessage String?
+  efficiencyMessage   String?
+  reproductiveData    Json?
+  animal              Animal                  @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  genealogy           AnimalGenealogyEntry[]
+  geneticEvaluations  AnimalGeneticEvaluation[]
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+}
+
+model AnimalGenealogyEntry {
+  id             String             @id @default(uuid())
+  animalId       String
+  snapshotId     String
+  relationship   String
+  registration   String
+  name           String
+  abczAnimalId   String?
+  generation     Int?
+  slot           Int?
+  sortOrder      Int
+  snapshot       AnimalAbczSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  @@index([animalId])
+  @@index([snapshotId])
+}
+
+model AnimalGeneticEvaluation {
+  id             String             @id @default(uuid())
+  animalId       String
+  snapshotId     String
+  period         String?
+  evaluationKind String?
+  iabcz          String?
+  deca           String?
+  inbreedingF    String?
+  deps           Json
+  snapshot       AnimalAbczSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  @@index([animalId])
+  @@index([snapshotId])
+}
+
+model GeneticLot {
+  id               String              @id @default(uuid())
+  farmId           String
+  sourceAnimalId   String
+  materialType     GeneticMaterialType
+  lotCode          String
+  collectedAt      DateTime?
+  initialDoses     Int
+  storageTank      String?
+  storageCanister  String?
+  storagePosition  String?
+  laboratory       String?
+  expiresAt        DateTime?
+  notes            String?
+  farm             Farm                @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  sourceAnimal     Animal              @relation(fields: [sourceAnimalId], references: [id], onDelete: Restrict)
+  movements        StockMovement[]
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@unique([farmId, lotCode])
+  @@index([farmId])
+  @@index([sourceAnimalId])
+}
+
+model StockMovement {
+  id            String            @id @default(uuid())
+  geneticLotId  String
+  type          StockMovementType
+  quantity      Int
+  reason        String?
+  referenceDate DateTime
+  createdById   String
+  geneticLot    GeneticLot        @relation(fields: [geneticLotId], references: [id], onDelete: Cascade)
+  createdBy     User              @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt     DateTime          @default(now())
+
+  @@index([geneticLotId])
+  @@index([createdById])
+}
