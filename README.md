@@ -59,6 +59,18 @@ packages/database → Prisma schema + client
 packages/shared   → Types e schemas Zod compartilhados
 ```
 
+## Deploy em produção (Vercel + Railway)
+
+O frontend está no Vercel; a API e o PostgreSQL ficam no Railway.
+
+**Guia completo:** [docs/DEPLOY-RAILWAY.md](./docs/DEPLOY-RAILWAY.md)
+
+Resumo:
+
+1. Railway: Postgres + serviço da API com variáveis (`DATABASE_URL`, `JWT_*`, `CORS_ORIGIN`)
+2. Domínio público da API → `NEXT_PUBLIC_API_URL=https://sua-api.up.railway.app/api/v1` no Vercel + **Redeploy**
+3. Login: `manager@controlefazendas.com` / `manager123` (após seed)
+
 ## Scripts
 
 | Comando | Descrição |
@@ -68,3 +80,4 @@ packages/shared   → Types e schemas Zod compartilhados
 | `pnpm db:migrate` | Roda migrations Prisma |
 | `pnpm db:seed` | Popula banco com dados demo |
 | `pnpm db:studio` | Abre Prisma Studio |
+| `pnpm railway:build` | Build da API para Railway |

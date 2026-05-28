@@ -3,11 +3,23 @@
 import axios from 'axios';
 
 export function getApiUrl(): string {
+  const configured = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
+  if (configured) return configured;
+
   if (typeof window !== 'undefined') {
     const { protocol, hostname } = window.location;
-    return `${protocol}//${hostname}:4000/api/v1`;
+    const isLocal =
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      /^192\.168\.\d+\.\d+$/.test(hostname) ||
+      /^10\.\d+\.\d+\.\d+$/.test(hostname);
+
+    if (isLocal) {
+      return `${protocol}//${hostname}:4000/api/v1`;
+    }
   }
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+
+  return 'http://localhost:4000/api/v1';
 }
 
 export const api = axios.create({

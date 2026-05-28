@@ -1,0 +1,6 @@
+# Garante Node 20 + pnpm no Railway (Nixpacks)
+[phases.setup]
+nixPkgs = ["nodejs_20", "pnpm"]
+
+[variables]
+NODE_VERSION = "20"

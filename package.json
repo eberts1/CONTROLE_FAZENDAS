@@ -12,7 +12,11 @@
     "db:generate": "pnpm --filter @controle-fazendas/database generate",
     "db:migrate": "pnpm --filter @controle-fazendas/database migrate",
     "db:seed": "pnpm --filter @controle-fazendas/database seed",
-    "db:studio": "pnpm --filter @controle-fazendas/database studio"
+    "db:studio": "pnpm --filter @controle-fazendas/database studio",
+    "railway:build": "pnpm db:generate && pnpm turbo run build --filter=@controle-fazendas/api...",
+    "railway:migrate": "pnpm --filter @controle-fazendas/database migrate:deploy",
+    "railway:seed": "pnpm db:seed",
+    "railway:start": "node apps/api/dist/main.js"
   },
   "devDependencies": {
     "prettier": "^3.4.2",

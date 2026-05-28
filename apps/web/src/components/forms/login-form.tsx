@@ -12,6 +12,22 @@ import { login } from '@/lib/auth';
 import { useFarmContext } from '@/hooks/use-farm-context';
 import { useToast } from '@/components/ui/use-toast';
 import { useState } from 'react';
+import { isAxiosError } from 'axios';
+
+function getLoginErrorMessage(error: unknown): string {
+  if (isAxiosError(error)) {
+    if (!error.response) {
+      return 'Não foi possível conectar à API. Verifique NEXT_PUBLIC_API_URL no Vercel e se a API está no ar.';
+    }
+    if (error.response.status === 401) {
+      return 'Credenciais inválidas. Use manager@controlefazendas.com / manager123 (após rodar o seed no banco de produção).';
+    }
+    if (error.response.status >= 500) {
+      return 'Erro no servidor da API. Verifique DATABASE_URL, migrations e seed no ambiente da API.';
+    }
+  }
+  return 'Não foi possível entrar. Tente novamente.';
+}
 
 export function LoginForm() {
   const router = useRouter();
@@ -35,10 +51,10 @@ export function LoginForm() {
       setSession(result.user, result.farms);
       toast({ title: 'Login realizado', description: `Bem-vindo, ${result.user.name}!` });
       router.push('/dashboard');
-    } catch {
+    } catch (error) {
       toast({
         title: 'Erro no login',
-        description: 'Credenciais inválidas. Tente novamente.',
+        description: getLoginErrorMessage(error),
         variant: 'destructive',
       });
     } finally {

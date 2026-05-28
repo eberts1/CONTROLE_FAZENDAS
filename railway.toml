@@ -1,0 +1,12 @@
+# Deploy da API NestJS (monorepo pnpm)
+# No Railway: conecte este repositório e use este arquivo na raiz do projeto.
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "pnpm install && pnpm railway:build"
+
+[deploy]
+preDeployCommand = "pnpm railway:migrate && pnpm railway:seed"
+startCommand = "pnpm railway:start"
+healthcheckPath = "/api/docs"
+healthcheckTimeout = 120
