@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { api } from '@/lib/api-client';
 import { useToast } from '@/components/ui/use-toast';
 import { animalSexLabels } from '@/lib/utils';
-import { UseFormSetValue } from 'react-hook-form';
+import { PathValue, UseFormSetValue } from 'react-hook-form';
 import { AbczProfileContent } from '@/components/abcz-profile-content';
 
 type AbczFormFields = Pick<
@@ -161,14 +161,14 @@ export function AbczLookupPanel({
     ) => {
       if (value === undefined || value === null || value === '') return;
       if (fillEmptyOnly && !isFieldEmpty(key)) return;
-      setValue(key, value as CreateAnimalInput[K]);
+      setValue(key, value as PathValue<CreateAnimalInput, K>);
     };
 
     setIfEmpty('tag', candidate.registration);
     setIfEmpty('name', candidate.name);
     setIfEmpty('breed', candidate.breed);
     const coat =
-      activeProfile?.header.coat ?? lookup?.detail?.coat ?? null;
+      activeProfile?.header.coat ?? lookup?.detail?.coat ?? undefined;
     setIfEmpty('pelagem', coat);
     if (!fillEmptyOnly) setValue('sex', candidate.sex);
     if (candidate.birthDate) setIfEmpty('birthDate', candidate.birthDate);
