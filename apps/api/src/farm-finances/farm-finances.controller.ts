@@ -42,6 +42,21 @@ export class FarmFinancesController {
     return this.financesService.getSummary(farmId, { section, from, to });
   }
 
+  @Get('summary-by-area')
+  getSummaryByArea(
+    @Param('farmId') farmId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.financesService.getSummaryByArea(farmId, { from, to });
+  }
+
+  @Get('trends')
+  getTrends(@Param('farmId') farmId: string, @Query('months') months?: string) {
+    const parsed = months ? Number.parseInt(months, 10) : 6;
+    return this.financesService.getTrends(farmId, Number.isFinite(parsed) ? parsed : 6);
+  }
+
   @Get('ledger')
   findLedger(
     @Param('farmId') farmId: string,

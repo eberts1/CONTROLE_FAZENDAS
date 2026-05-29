@@ -16,7 +16,9 @@ import {
 } from '@prisma/client';
 import {
   EmployeeDto,
+  FarmFinanceByAreaSummaryDto,
   FarmFinanceSummaryDto,
+  FarmFinanceTrendsDto,
   FarmLedgerEntryDto,
   mapAnimalExpenseToLedgerMeta,
   mapAnimalSaleToLedgerMeta,
@@ -221,6 +223,92 @@ export class FarmFinancesService {
         balance: v.revenue - v.expense,
       })),
     };
+  }
+
+  async getSummaryByArea(
+    farmId: string,
+    query: { from?: string; to?: string },
+  ): Promise<FarmFinanceByAreaSummaryDto> {
+    const { start, end } = this.monthRange(undefined, query.from, query.to);
+    const entries = await this.prisma.farmLedgerEntry.findMany({
+      where: { farmId, entryDate: { gte: start, lte: end } },
+      select: { areaId: true, type: true, amount: true },
+    });
+
+    const areaMap = new Map<string | null, { revenue: number; expense: number }>();
+    for (const entry of entries) {
+      const key = entry.areaId;
+      const bucket = areaMap.get(key) ?? { revenue: 0, expense: 0 };
+      const amount = decimalToNumber(entry.amount) ?? 0;
+      if (entry.type === LedgerEntryType.RECEITA) {
+        bucket.revenue += amount;
+      } else {
+        bucket.expense += amount;
+      }
+      areaMap.set(key, bucket);
+    }
+
+    const areaIds = [...areaMap.keys()].filter((id): id is string => id !== null);
+    const areas = areaIds.length
+      ? await this.prisma.area.findMany({
+          where: { farmId, id: { in: areaIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const areaNames = new Map(areas.map((a) => [a.id, a.name]));
+
+    const byArea = [...areaMap.entries()]
+      .map(([areaId, v]) => ({
+        areaId,
+        areaName: areaId ? (areaNames.get(areaId) ?? 'Área') : 'Sem área',
+        revenue: v.revenue,
+        expense: v.expense,
+        balance: v.revenue - v.expense,
+      }))
+      .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
+
+    return {
+      from: start.toISOString(),
+      to: end.toISOString(),
+      byArea,
+    };
+  }
+
+  async getTrends(farmId: string, months: number): Promise<FarmFinanceTrendsDto> {
+    const count = Math.min(Math.max(months, 1), 24);
+    const now = new Date();
+    const points: FarmFinanceTrendsDto['points'] = [];
+
+    for (let i = count - 1; i >= 0; i -= 1) {
+      const ref = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const start = new Date(ref.getFullYear(), ref.getMonth(), 1);
+      const end = new Date(ref.getFullYear(), ref.getMonth() + 1, 0, 23, 59, 59);
+      const month = `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, '0')}`;
+
+      const entries = await this.prisma.farmLedgerEntry.findMany({
+        where: { farmId, entryDate: { gte: start, lte: end } },
+        select: { type: true, amount: true },
+      });
+
+      let totalRevenue = 0;
+      let totalExpense = 0;
+      for (const entry of entries) {
+        const amount = decimalToNumber(entry.amount) ?? 0;
+        if (entry.type === LedgerEntryType.RECEITA) totalRevenue += amount;
+        else totalExpense += amount;
+      }
+
+      points.push({
+        month,
+        from: start.toISOString(),
+        to: end.toISOString(),
+        totalRevenue,
+        totalExpense,
+        balance: totalRevenue - totalExpense,
+      });
+    }
+
+    return { months: count, points };
   }
 
   async findLedger(

@@ -16,6 +16,7 @@ export * from './partner-document.util';
 export * from './bula-buyer-list-parser.util';
 export * from './partner-match.util';
 export * from './partner-duplicate.util';
+export * from './animal-management.util';
 
 export interface SaleInstallmentDto {
   id: string;
@@ -475,6 +476,31 @@ export interface AnimalExpenseDto {
   updatedAt: string;
 }
 
+export interface AnimalManagementMetadataDto {
+  weightKg?: number;
+  gestationResult?: 'POSITIVO' | 'NEGATIVO' | 'INDETERMINADO';
+  productName?: string;
+  dose?: string;
+}
+
+export interface AnimalManagementRecordDto {
+  id: string;
+  farmId: string;
+  animalId: string;
+  category: import('./enums').AnimalManagementCategory;
+  eventType: import('./enums').AnimalManagementEventType;
+  performedAt: string;
+  notes: string | null;
+  relatedAnimalId: string | null;
+  metadata: AnimalManagementMetadataDto | null;
+  expenseId: string | null;
+  createdById: string;
+  relatedAnimal?: Pick<AnimalDto, 'id' | 'tag' | 'name' | 'sex'>;
+  expense?: AnimalExpenseDto;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AnimalFinanceSummaryDto {
   totalSales: number;
   totalExpenses: number;
@@ -634,6 +660,103 @@ export interface PayrollRunDto {
   updatedAt: string;
 }
 
+/** Gestação bovina padrão (dias) para estimativa de parto no dashboard. */
+export const CATTLE_GESTATION_DAYS = 280;
+
+export interface FarmAnimalsSummaryDto {
+  methodology: string;
+  herd: {
+    total: number;
+    active: number;
+    bySex: Array<{ sex: import('./enums').AnimalSex; count: number }>;
+    byStatus: Array<{ status: import('./enums').AnimalStatus; count: number }>;
+    topBreeds: Array<{ breed: string; count: number }>;
+    birthsThisMonth: number;
+    birthsThisYear: number;
+  };
+  abcz: {
+    withProfile: number;
+    withoutProfile: number;
+  };
+  reproductive: {
+    inseminationsLast90Days: number;
+    inseminationsThisMonth: number;
+    diagnosticsByResult: Array<{
+      result: 'POSITIVO' | 'NEGATIVO' | 'INDETERMINADO';
+      count: number;
+    }>;
+    estimatedPregnant: number;
+    expectedBirthsNext90Days: number;
+    birthsThisMonth: number;
+    birthsThisYear: number;
+    upcomingBirths: Array<{
+      animalId: string;
+      tag: string;
+      name: string | null;
+      expectedDate: string;
+    }>;
+  };
+}
+
+export interface FarmEventsExecutiveSummaryDto {
+  byStatus: Array<{ status: import('./enums').FarmEventStatus; count: number }>;
+  totals: {
+    eventCount: number;
+    activeCount: number;
+    totalSales: number;
+    totalExpenses: number;
+    totalReceived: number;
+    openReceivable: number;
+    balance: number;
+    collectionRate: number;
+  };
+  topByRevenue: Array<{
+    id: string;
+    name: string;
+    status: import('./enums').FarmEventStatus;
+    totalSales: number;
+    balance: number;
+  }>;
+  upcoming: Array<{
+    id: string;
+    name: string;
+    status: import('./enums').FarmEventStatus;
+    startDate: string | null;
+    totalSales: number;
+  }>;
+  recentCompleted: Array<{
+    id: string;
+    name: string;
+    endDate: string | null;
+    totalSales: number;
+    balance: number;
+  }>;
+}
+
+export interface FarmFinanceByAreaSummaryDto {
+  from: string;
+  to: string;
+  byArea: Array<{
+    areaId: string | null;
+    areaName: string;
+    revenue: number;
+    expense: number;
+    balance: number;
+  }>;
+}
+
+export interface FarmFinanceTrendsDto {
+  months: number;
+  points: Array<{
+    month: string;
+    from: string;
+    to: string;
+    totalRevenue: number;
+    totalExpense: number;
+    balance: number;
+  }>;
+}
+
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
@@ -642,4 +765,11 @@ export interface AuthTokens {
 export interface AuthResponse extends AuthTokens {
   user: UserDto;
   farms: FarmDto[];
+}
+
+export interface AdBannerGenerateResultDto {
+  imageBase64: string;
+  mimeType: string;
+  contentType: import('./enums').AdBannerContentType;
+  generatedAt: string;
 }

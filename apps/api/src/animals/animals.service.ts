@@ -6,14 +6,21 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { AnimalSex, AnimalStatus, Prisma } from '@prisma/client';
-
 import {
   type AbczProfilePreviewDto,
   type AnimalDto,
+  type FarmAnimalsSummaryDto,
   AnimalSex as SharedAnimalSex,
   AnimalStatus as SharedAnimalStatus,
+  CATTLE_GESTATION_DAYS,
 } from '@controle-fazendas/shared';
+
+import {
+  AnimalManagementEventType,
+  AnimalSex,
+  AnimalStatus,
+  Prisma,
+} from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.module';
 
@@ -476,6 +483,239 @@ export class AnimalsService {
 
     return this.abczSync.getProfile(farmId, animalId);
 
+  }
+
+  private static readonly BREEDING_EVENT_TYPES: AnimalManagementEventType[] = [
+    AnimalManagementEventType.INSEMINACAO,
+    AnimalManagementEventType.DOADOR_INSEMINACAO,
+    AnimalManagementEventType.MONTA_NATURAL,
+  ];
+
+  private parseGestationResult(
+    metadata: Prisma.JsonValue | null,
+  ): 'POSITIVO' | 'NEGATIVO' | 'INDETERMINADO' | null {
+    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
+    const result = (metadata as { gestationResult?: string }).gestationResult;
+    if (result === 'POSITIVO' || result === 'NEGATIVO' || result === 'INDETERMINADO') {
+      return result;
+    }
+    return null;
+  }
+
+  async getFarmSummary(farmId: string): Promise<FarmAnimalsSummaryDto> {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+    const ninetyDaysAgo = new Date(now);
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    const ninetyDaysAhead = new Date(now);
+    ninetyDaysAhead.setDate(ninetyDaysAhead.getDate() + 90);
+
+    const [
+      total,
+      active,
+      sexGroups,
+      statusGroups,
+      breedGroups,
+      birthsThisMonth,
+      birthsThisYear,
+      withAbcz,
+      withoutAbcz,
+      managementRecords,
+      activeFemales,
+    ] = await Promise.all([
+      this.prisma.animal.count({ where: { farmId } }),
+      this.prisma.animal.count({ where: { farmId, status: AnimalStatus.ATIVO } }),
+      this.prisma.animal.groupBy({
+        by: ['sex'],
+        where: { farmId, status: AnimalStatus.ATIVO },
+        _count: true,
+      }),
+      this.prisma.animal.groupBy({
+        by: ['status'],
+        where: { farmId },
+        _count: true,
+      }),
+      this.prisma.animal.groupBy({
+        by: ['breed'],
+        where: { farmId, status: AnimalStatus.ATIVO, breed: { not: null } },
+        _count: true,
+      }),
+      this.prisma.animal.count({
+        where: {
+          farmId,
+          birthDate: { gte: monthStart, lte: monthEnd },
+        },
+      }),
+      this.prisma.animal.count({
+        where: {
+          farmId,
+          birthDate: { gte: yearStart, lte: now },
+        },
+      }),
+      this.prisma.animal.count({
+        where: { farmId, abczSnapshot: { isNot: null } },
+      }),
+      this.prisma.animal.count({
+        where: { farmId, abczSnapshot: null },
+      }),
+      this.prisma.animalManagementRecord.findMany({
+        where: {
+          farmId,
+          eventType: {
+            in: [
+              ...AnimalsService.BREEDING_EVENT_TYPES,
+              AnimalManagementEventType.DIAGNOSTICO_GESTACAO,
+              AnimalManagementEventType.PARTO_ABORTO,
+            ],
+          },
+        },
+        select: {
+          animalId: true,
+          eventType: true,
+          performedAt: true,
+          metadata: true,
+        },
+        orderBy: { performedAt: 'desc' },
+      }),
+      this.prisma.animal.findMany({
+        where: { farmId, status: AnimalStatus.ATIVO, sex: AnimalSex.FEMEA },
+        select: { id: true, tag: true, name: true },
+      }),
+    ]);
+
+    const recordsByAnimal = new Map<string, typeof managementRecords>();
+    for (const record of managementRecords) {
+      const list = recordsByAnimal.get(record.animalId) ?? [];
+      list.push(record);
+      recordsByAnimal.set(record.animalId, list);
+    }
+
+    let inseminationsLast90Days = 0;
+    let inseminationsThisMonth = 0;
+    const diagnosticsByResult = new Map<
+      'POSITIVO' | 'NEGATIVO' | 'INDETERMINADO',
+      number
+    >();
+    let birthsFromRecordsThisMonth = 0;
+    let birthsFromRecordsThisYear = 0;
+
+    for (const record of managementRecords) {
+      if (AnimalsService.BREEDING_EVENT_TYPES.includes(record.eventType)) {
+        if (record.performedAt >= ninetyDaysAgo) inseminationsLast90Days += 1;
+        if (record.performedAt >= monthStart && record.performedAt <= monthEnd) {
+          inseminationsThisMonth += 1;
+        }
+      }
+      if (record.eventType === AnimalManagementEventType.DIAGNOSTICO_GESTACAO) {
+        const result = this.parseGestationResult(record.metadata);
+        if (result) {
+          diagnosticsByResult.set(result, (diagnosticsByResult.get(result) ?? 0) + 1);
+        }
+      }
+      if (record.eventType === AnimalManagementEventType.PARTO_ABORTO) {
+        if (record.performedAt >= monthStart && record.performedAt <= monthEnd) {
+          birthsFromRecordsThisMonth += 1;
+        }
+        if (record.performedAt >= yearStart) birthsFromRecordsThisYear += 1;
+      }
+    }
+
+    const upcomingBirths: FarmAnimalsSummaryDto['reproductive']['upcomingBirths'] = [];
+    let estimatedPregnant = 0;
+
+    for (const female of activeFemales) {
+      const records = recordsByAnimal.get(female.id) ?? [];
+      if (records.length === 0) continue;
+
+      const sorted = [...records].sort(
+        (a, b) => b.performedAt.getTime() - a.performedAt.getTime(),
+      );
+
+      const lastPositiveDg = sorted.find(
+        (r) =>
+          r.eventType === AnimalManagementEventType.DIAGNOSTICO_GESTACAO &&
+          this.parseGestationResult(r.metadata) === 'POSITIVO',
+      );
+      if (!lastPositiveDg) continue;
+
+      const partoAfterDg = sorted.find(
+        (r) =>
+          r.eventType === AnimalManagementEventType.PARTO_ABORTO &&
+          r.performedAt > lastPositiveDg.performedAt,
+      );
+      if (partoAfterDg) continue;
+
+      estimatedPregnant += 1;
+
+      const breedingBeforeDg = sorted.find(
+        (r) =>
+          AnimalsService.BREEDING_EVENT_TYPES.includes(r.eventType) &&
+          r.performedAt <= lastPositiveDg.performedAt,
+      );
+      if (!breedingBeforeDg) continue;
+
+      const expectedDate = new Date(breedingBeforeDg.performedAt);
+      expectedDate.setDate(expectedDate.getDate() + CATTLE_GESTATION_DAYS);
+
+      if (expectedDate >= now && expectedDate <= ninetyDaysAhead) {
+        upcomingBirths.push({
+          animalId: female.id,
+          tag: female.tag,
+          name: female.name,
+          expectedDate: expectedDate.toISOString(),
+        });
+      }
+    }
+
+    upcomingBirths.sort(
+      (a, b) => new Date(a.expectedDate).getTime() - new Date(b.expectedDate).getTime(),
+    );
+
+    const topBreeds = breedGroups
+      .filter((row) => row.breed)
+      .map((row) => ({ breed: row.breed!, count: row._count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    return {
+      methodology: `Prenhez: último diagnóstico positivo sem parto posterior. Parto previsto: última cobertura/inseminação + ${CATTLE_GESTATION_DAYS} dias.`,
+      herd: {
+        total,
+        active,
+        bySex: sexGroups.map((row) => ({
+          sex: row.sex as FarmAnimalsSummaryDto['herd']['bySex'][0]['sex'],
+          count: row._count,
+        })),
+        byStatus: statusGroups.map((row) => ({
+          status: row.status as FarmAnimalsSummaryDto['herd']['byStatus'][0]['status'],
+          count: row._count,
+        })),
+        topBreeds,
+        birthsThisMonth,
+        birthsThisYear,
+      },
+      abcz: {
+        withProfile: withAbcz,
+        withoutProfile: withoutAbcz,
+      },
+      reproductive: {
+        inseminationsLast90Days,
+        inseminationsThisMonth,
+        diagnosticsByResult: (
+          ['POSITIVO', 'NEGATIVO', 'INDETERMINADO'] as const
+        ).map((result) => ({
+          result,
+          count: diagnosticsByResult.get(result) ?? 0,
+        })),
+        estimatedPregnant,
+        expectedBirthsNext90Days: upcomingBirths.length,
+        birthsThisMonth: birthsFromRecordsThisMonth,
+        birthsThisYear: birthsFromRecordsThisYear,
+        upcomingBirths: upcomingBirths.slice(0, 5),
+      },
+    };
   }
 
 }

@@ -3,6 +3,7 @@ import {
   FarmEventDto,
   FarmEventListItemDto,
   FarmEventSaleListItemDto,
+  FarmEventsExecutiveSummaryDto,
   FarmEventSummaryDto,
 } from '@controle-fazendas/shared';
 import {
@@ -177,6 +178,117 @@ export class FarmEventsService {
     }
 
     return map;
+  }
+
+  async getExecutiveSummary(farmId: string): Promise<FarmEventsExecutiveSummaryDto> {
+    const items = await this.findAll(farmId);
+    const now = new Date();
+    const in60Days = new Date(now);
+    in60Days.setDate(in60Days.getDate() + 60);
+
+    const statusCounts = new Map<FarmEventStatus, number>();
+    for (const status of Object.values(FarmEventStatus)) {
+      statusCounts.set(status, 0);
+    }
+    for (const item of items) {
+      statusCounts.set(item.status as FarmEventStatus, (statusCounts.get(item.status as FarmEventStatus) ?? 0) + 1);
+    }
+
+    const activeStatuses = new Set<FarmEventStatus>([
+      FarmEventStatus.PLANEJADO,
+      FarmEventStatus.EM_ANDAMENTO,
+    ]);
+
+    let totalSales = 0;
+    let totalExpenses = 0;
+    let totalReceived = 0;
+    let openReceivable = 0;
+
+    for (const item of items) {
+      totalSales += item.totalSales;
+      totalExpenses += item.totalExpenses;
+      totalReceived += item.totalReceived;
+      openReceivable += item.openReceivable;
+    }
+
+    const balance = this.roundMoney(totalSales - totalExpenses);
+    totalSales = this.roundMoney(totalSales);
+    totalExpenses = this.roundMoney(totalExpenses);
+    totalReceived = this.roundMoney(totalReceived);
+    openReceivable = this.roundMoney(openReceivable);
+
+    const collectionRate =
+      totalSales > 0 ? this.roundMoney((totalReceived / totalSales) * 100) : 0;
+
+    const topByRevenue = [...items]
+      .sort((a, b) => b.totalSales - a.totalSales)
+      .slice(0, 5)
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        status: item.status,
+        totalSales: item.totalSales,
+        balance: item.balance,
+      }));
+
+    const upcoming = items
+      .filter((item) => {
+        if (!activeStatuses.has(item.status as FarmEventStatus)) return false;
+        if (!item.startDate) return item.status === FarmEventStatus.PLANEJADO;
+        const start = new Date(item.startDate);
+        return start >= now && start <= in60Days;
+      })
+      .sort((a, b) => {
+        const da = a.startDate ? new Date(a.startDate).getTime() : Number.MAX_SAFE_INTEGER;
+        const db = b.startDate ? new Date(b.startDate).getTime() : Number.MAX_SAFE_INTEGER;
+        return da - db;
+      })
+      .slice(0, 5)
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        status: item.status,
+        startDate: item.startDate,
+        totalSales: item.totalSales,
+      }));
+
+    const recentCompleted = items
+      .filter((item) => item.status === FarmEventStatus.CONCLUIDO)
+      .sort((a, b) => {
+        const da = a.endDate ? new Date(a.endDate).getTime() : 0;
+        const db = b.endDate ? new Date(b.endDate).getTime() : 0;
+        return db - da;
+      })
+      .slice(0, 3)
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        endDate: item.endDate,
+        totalSales: item.totalSales,
+        balance: item.balance,
+      }));
+
+    return {
+      byStatus: [...statusCounts.entries()].map(([status, count]) => ({
+        status: status as FarmEventsExecutiveSummaryDto['byStatus'][0]['status'],
+        count,
+      })),
+      totals: {
+        eventCount: items.length,
+        activeCount: items.filter((item) =>
+          activeStatuses.has(item.status as FarmEventStatus),
+        ).length,
+        totalSales,
+        totalExpenses,
+        totalReceived,
+        openReceivable,
+        balance,
+        collectionRate,
+      },
+      topByRevenue,
+      upcoming,
+      recentCompleted,
+    };
   }
 
   async findAll(farmId: string): Promise<FarmEventListItemDto[]> {

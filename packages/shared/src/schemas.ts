@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import {
+  AdBannerAspectRatio,
+  AdBannerContentType,
   AnimalExpenseType,
+  AnimalManagementCategory,
+  AnimalManagementEventType,
   AnimalSaleType,
   AnimalSex,
   AnimalStatus,
@@ -18,6 +22,7 @@ import {
   SaleAssetScope,
   StockMovementType,
 } from './enums';
+import { isEventTypeValidForCategory } from './animal-management.util';
 import { ownershipRequiresEvent, resolveAssetScope } from './ownership-transfer.util';
 
 export const loginSchema = z.object({
@@ -313,6 +318,54 @@ export const createAnimalExpenseSchema = z.object({
 
 export const updateAnimalExpenseSchema = createAnimalExpenseSchema.partial();
 
+export const animalManagementMetadataSchema = z
+  .object({
+    weightKg: z.number().positive().optional(),
+    gestationResult: z.enum(['POSITIVO', 'NEGATIVO', 'INDETERMINADO']).optional(),
+    productName: z.string().optional(),
+    dose: z.string().optional(),
+  })
+  .optional();
+
+export const createAnimalManagementRecordSchema = z
+  .object({
+    category: z.nativeEnum(AnimalManagementCategory),
+    eventType: z.nativeEnum(AnimalManagementEventType),
+    performedAt: z.string().min(1, 'Data obrigatória'),
+    notes: z.string().optional(),
+    relatedAnimalId: z.string().uuid().optional(),
+    metadata: animalManagementMetadataSchema,
+    expense: createAnimalExpenseSchema.optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!isEventTypeValidForCategory(data.category, data.eventType)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['eventType'],
+        message: 'Tipo de evento inválido para a categoria',
+      });
+    }
+  });
+
+export const updateAnimalManagementRecordSchema = z
+  .object({
+    category: z.nativeEnum(AnimalManagementCategory).optional(),
+    eventType: z.nativeEnum(AnimalManagementEventType).optional(),
+    performedAt: z.string().min(1).optional(),
+    notes: z.string().optional().nullable(),
+    relatedAnimalId: z.string().uuid().optional().nullable(),
+    metadata: animalManagementMetadataSchema.nullable(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.category && data.eventType && !isEventTypeValidForCategory(data.category, data.eventType)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['eventType'],
+        message: 'Tipo de evento inválido para a categoria',
+      });
+    }
+  });
+
 const ledgerEntryBaseSchema = z.object({
   section: z.nativeEnum(FinanceSection),
   type: z.nativeEnum(LedgerEntryType),
@@ -521,6 +574,9 @@ export type CreateAnimalSaleInput = z.infer<typeof createAnimalSaleSchema>;
 export type UpdateAnimalSaleInput = z.infer<typeof updateAnimalSaleSchema>;
 export type CreateAnimalExpenseInput = z.infer<typeof createAnimalExpenseSchema>;
 export type UpdateAnimalExpenseInput = z.infer<typeof updateAnimalExpenseSchema>;
+export type AnimalManagementMetadataInput = z.infer<typeof animalManagementMetadataSchema>;
+export type CreateAnimalManagementRecordInput = z.infer<typeof createAnimalManagementRecordSchema>;
+export type UpdateAnimalManagementRecordInput = z.infer<typeof updateAnimalManagementRecordSchema>;
 export type CreateLedgerEntryInput = z.infer<typeof createLedgerEntrySchema>;
 export type UpdateLedgerEntryInput = z.infer<typeof updateLedgerEntrySchema>;
 export type CreateRecurringTemplateInput = z.infer<typeof createRecurringTemplateSchema>;
@@ -535,3 +591,37 @@ export type CreateSaleInstallmentPlanInput = z.infer<typeof createSaleInstallmen
 export type PayInstallmentInput = z.infer<typeof payInstallmentSchema>;
 export type SaleMapImportLotInput = z.infer<typeof saleMapImportLotSchema>;
 export type ImportSaleMapInput = z.infer<typeof importSaleMapSchema>;
+
+export const generateAdBannerSchema = z
+  .object({
+    contentType: z.nativeEnum(AdBannerContentType),
+    damAnimalId: z.string().uuid().optional(),
+    sireAnimalId: z.string().uuid().optional(),
+    subtitle: z
+      .string()
+      .max(1000)
+      .optional()
+      .transform((value) => {
+        const trimmed = value?.trim();
+        return trimmed ? trimmed : undefined;
+      }),
+    aspectRatio: z.nativeEnum(AdBannerAspectRatio).default(AdBannerAspectRatio.RATIO_16_9),
+  })
+  .superRefine((data, ctx) => {
+    if (data.contentType === AdBannerContentType.EMBRIAO) {
+      if (!data.damAnimalId) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['damAnimalId'], message: 'Matriz obrigatória' });
+      }
+      if (!data.sireAnimalId) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['sireAnimalId'], message: 'Reprodutor obrigatório' });
+      }
+    }
+    if (data.contentType === AdBannerContentType.SEMEN && !data.sireAnimalId) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['sireAnimalId'], message: 'Reprodutor obrigatório' });
+    }
+    if (data.contentType === AdBannerContentType.ASPIRACAO && !data.damAnimalId) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['damAnimalId'], message: 'Matriz obrigatória' });
+    }
+  });
+
+export type GenerateAdBannerInput = z.infer<typeof generateAdBannerSchema>;

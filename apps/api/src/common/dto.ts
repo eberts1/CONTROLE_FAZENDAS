@@ -1878,3 +1878,96 @@ export class MergePartnersDto {
   @IsString({ each: true })
   mergePartnerIds!: string[];
 }
+
+export class AnimalManagementMetadataDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  weightKg?: number;
+
+  @ApiPropertyOptional({ enum: ['POSITIVO', 'NEGATIVO', 'INDETERMINADO'] })
+  @IsOptional()
+  @IsIn(['POSITIVO', 'NEGATIVO', 'INDETERMINADO'])
+  gestationResult?: 'POSITIVO' | 'NEGATIVO' | 'INDETERMINADO';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  productName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  dose?: string;
+}
+
+export class CreateAnimalManagementRecordDto {
+  @ApiProperty({ enum: ['SAUDE', 'REPRODUTIVO', 'NUTRICAO', 'MANEJO_GERAL'] })
+  @IsString()
+  category!: string;
+
+  @ApiProperty()
+  @IsString()
+  eventType!: string;
+
+  @ApiProperty()
+  @IsString()
+  performedAt!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  relatedAnimalId?: string;
+
+  @ApiPropertyOptional({ type: AnimalManagementMetadataDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AnimalManagementMetadataDto)
+  metadata?: AnimalManagementMetadataDto;
+
+  @ApiPropertyOptional({ type: CreateAnimalExpenseDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CreateAnimalExpenseDto)
+  expense?: CreateAnimalExpenseDto;
+}
+
+export class UpdateAnimalManagementRecordDto {
+  @ApiPropertyOptional({ enum: ['SAUDE', 'REPRODUTIVO', 'NUTRICAO', 'MANEJO_GERAL'] })
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  eventType?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  performedAt?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  notes?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  relatedAnimalId?: string | null;
+
+  @ApiPropertyOptional({ type: AnimalManagementMetadataDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AnimalManagementMetadataDto)
+  metadata?: AnimalManagementMetadataDto | null;
+}

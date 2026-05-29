@@ -143,7 +143,7 @@ export class AnimalFinancesService {
     };
   }
 
-  private expenseToDto(expense: ExpenseWithAllocations): AnimalExpenseDto {
+  toExpenseDto(expense: ExpenseWithAllocations): AnimalExpenseDto {
     return {
       id: expense.id,
       animalId: expense.animalId,
@@ -479,7 +479,7 @@ export class AnimalFinancesService {
       include: this.expenseInclude,
       orderBy: { expenseDate: 'desc' },
     });
-    return expenses.map((e) => this.expenseToDto(e));
+    return expenses.map((e) => this.toExpenseDto(e));
   }
 
   async findExpense(farmId: string, animalId: string, expenseId: string) {
@@ -488,7 +488,7 @@ export class AnimalFinancesService {
       include: this.expenseInclude,
     });
     if (!expense) throw new NotFoundException('Despesa não encontrada');
-    return this.expenseToDto(expense);
+    return this.toExpenseDto(expense);
   }
 
   async createExpense(
@@ -496,8 +496,10 @@ export class AnimalFinancesService {
     animalId: string,
     dto: CreateAnimalExpenseDto,
     user: AuthUser,
+    tx?: Prisma.TransactionClient,
   ) {
     await this.ownershipService.ensureAnimal(farmId, animalId);
+    const db = tx ?? this.prisma;
     const shares = await this.ownershipService.getSharesForAllocation(animalId);
     const splitAmongPartners = dto.splitAmongPartners ?? true;
 
@@ -516,7 +518,7 @@ export class AnimalFinancesService {
 
     if (dto.eventId) await this.ensureEvent(farmId, dto.eventId);
 
-    const expense = await this.prisma.animalExpense.create({
+    const expense = await db.animalExpense.create({
       data: {
         animalId,
         farmId,
@@ -539,9 +541,9 @@ export class AnimalFinancesService {
       include: this.expenseInclude,
     });
 
-    await this.farmFinances.syncFromAnimalExpense(expense);
+    await this.farmFinances.syncFromAnimalExpense(expense, tx);
 
-    return this.expenseToDto(expense);
+    return this.toExpenseDto(expense);
   }
 
   async updateExpense(
@@ -598,7 +600,7 @@ export class AnimalFinancesService {
       });
     });
 
-    return this.expenseToDto(expense);
+    return this.toExpenseDto(expense);
   }
 
   async removeExpense(farmId: string, animalId: string, expenseId: string) {

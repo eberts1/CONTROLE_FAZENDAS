@@ -14,9 +14,11 @@ import { KinshipModule } from './kinship/kinship.module';
 import { PartnersModule } from './partners/partners.module';
 import { AnimalOwnershipModule } from './animal-ownership/animal-ownership.module';
 import { AnimalFinancesModule } from './animal-finances/animal-finances.module';
+import { AnimalManagementModule } from './animal-management/animal-management.module';
 import { FarmEventsModule } from './farm-events/farm-events.module';
 import { FarmFinancesModule } from './farm-finances/farm-finances.module';
 import { SaleInstallmentsModule } from './sale-installments/sale-installments.module';
+import { AdBannersModule } from './ad-banners/ad-banners.module';
 
 @Module({
   imports: [
@@ -35,9 +37,11 @@ import { SaleInstallmentsModule } from './sale-installments/sale-installments.mo
     PartnersModule,
     AnimalOwnershipModule,
     AnimalFinancesModule,
+    AnimalManagementModule,
     FarmEventsModule,
     FarmFinancesModule,
     SaleInstallmentsModule,
+    AdBannersModule,
   ],
 })
 export class AppModule {}

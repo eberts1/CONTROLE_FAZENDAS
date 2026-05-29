@@ -100,6 +100,32 @@ enum AnimalExpenseType {
   OUTRO
 }
 
+enum AnimalManagementCategory {
+  SAUDE
+  REPRODUTIVO
+  NUTRICAO
+  MANEJO_GERAL
+}
+
+enum AnimalManagementEventType {
+  OBSERVACAO_CLINICA
+  TRATAMENTO_DOENCA
+  MEDICACAO
+  VACINACAO
+  EXAME
+  INSEMINACAO
+  DOADOR_INSEMINACAO
+  MONTA_NATURAL
+  DIAGNOSTICO_GESTACAO
+  PARTO_ABORTO
+  SUPLEMENTACAO
+  MUDANCA_DIETA
+  PESAGEM
+  MOVIMENTACAO
+  IDENTIFICACAO
+  OUTRO
+}
+
 enum FinanceSection {
   COTIDIANO
   FIXOS_RECORRENTES
@@ -198,11 +224,12 @@ model User {
   records        ProcessRecord[]
   stockMovements StockMovement[]
   animalSales    AnimalSale[]
-  animalExpenses AnimalExpense[]
-  ledgerEntries  FarmLedgerEntry[]
-  payrollRuns    PayrollRun[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  animalExpenses           AnimalExpense[]
+  animalManagementRecords  AnimalManagementRecord[]
+  ledgerEntries            FarmLedgerEntry[]
+  payrollRuns              PayrollRun[]
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
 }
 
 model Farm {
@@ -216,8 +243,9 @@ model Farm {
   geneticLots GeneticLot[]
   partners    Partner[]
   animalSales AnimalSale[]
-  animalExpenses AnimalExpense[]
-  events              FarmEvent[]
+  animalExpenses           AnimalExpense[]
+  animalManagementRecords  AnimalManagementRecord[]
+  events                   FarmEvent[]
   ledgerEntries       FarmLedgerEntry[]
   recurringTemplates  RecurringLedgerTemplate[]
   employees           Employee[]
@@ -318,11 +346,13 @@ model Animal {
   abczSnapshot       AnimalAbczSnapshot?
   ownership          AnimalOwnership[]
   ownershipHistory   AnimalOwnershipHistory[]
-  sales              AnimalSale[]
-  expenses           AnimalExpense[]
-  ledgerEntries      FarmLedgerEntry[]
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  sales                    AnimalSale[]
+  expenses                 AnimalExpense[]
+  managementRecords        AnimalManagementRecord[]
+  relatedManagementRecords AnimalManagementRecord[] @relation("ManagementRelatedAnimal")
+  ledgerEntries            FarmLedgerEntry[]
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
 
   @@unique([farmId, tag])
   @@index([farmId])
@@ -629,6 +659,7 @@ model AnimalExpense {
   event               FarmEvent?                  @relation(fields: [eventId], references: [id], onDelete: SetNull)
   createdBy           User                        @relation(fields: [createdById], references: [id], onDelete: Cascade)
   allocations         AnimalExpenseAllocation[]
+  managementRecord    AnimalManagementRecord?
   ledgerEntry         FarmLedgerEntry?
   createdAt           DateTime                    @default(now())
   updatedAt           DateTime                    @updatedAt
@@ -636,6 +667,32 @@ model AnimalExpense {
   @@index([animalId])
   @@index([farmId])
   @@index([eventId])
+  @@index([createdById])
+}
+
+model AnimalManagementRecord {
+  id              String                   @id @default(uuid())
+  farmId          String
+  animalId        String
+  category        AnimalManagementCategory
+  eventType       AnimalManagementEventType
+  performedAt     DateTime
+  notes           String?
+  relatedAnimalId String?
+  metadata        Json?
+  expenseId       String?                  @unique
+  createdById     String
+  farm            Farm                     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  animal          Animal                   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  relatedAnimal   Animal?                  @relation("ManagementRelatedAnimal", fields: [relatedAnimalId], references: [id], onDelete: SetNull)
+  expense         AnimalExpense?           @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  createdBy       User                     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  @@index([animalId, performedAt])
+  @@index([farmId, category])
+  @@index([relatedAnimalId])
   @@index([createdById])
 }
 

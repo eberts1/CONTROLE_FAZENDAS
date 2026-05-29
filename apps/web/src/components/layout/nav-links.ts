@@ -12,6 +12,7 @@ import {
   Wallet,
   Receipt,
   UserCog,
+  Image,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -34,6 +35,7 @@ export const navLinks: NavLink[] = [
   { href: '/dashboard/financeiro', label: 'Financeiro', icon: Wallet },
   { href: '/dashboard/parentesco', label: 'Parentesco', icon: GitBranch },
   { href: '/dashboard/material-genetico', label: 'Material Genético', icon: Dna },
+  { href: '/dashboard/banners', label: 'Banners Hub', icon: Image },
 ];
 
 export const adminNavLinks: NavLink[] = [

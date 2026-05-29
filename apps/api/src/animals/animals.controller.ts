@@ -26,6 +26,11 @@ export class AnimalsController {
     return this.animalsService.findAll(farmId);
   }
 
+  @Get('summary')
+  getSummary(@Param('farmId') farmId: string) {
+    return this.animalsService.getFarmSummary(farmId);
+  }
+
   @Get(':id/abcz-profile')
   async getAbczProfile(@Param('farmId') farmId: string, @Param('id') id: string) {
     const profile = await this.animalsService.getAbczProfile(farmId, id);

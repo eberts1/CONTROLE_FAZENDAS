@@ -14,6 +14,7 @@ import {
 import { AbczLookupPanel } from '@/components/abcz-lookup-panel';
 import { AbczGenealogyTree, hasPedigreeTree } from '@/components/abcz-genealogy-tree';
 import { AnimalFinanceSection } from '@/components/animal-finance-section';
+import { AnimalManagementSection } from '@/components/animal-management-section';
 import { AnimalOwnershipSection } from '@/components/animal-ownership-section';
 import { UseFormReturn, UseFormSetValue } from 'react-hook-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -174,6 +175,7 @@ export function AnimalDetailSections({
         <TabsTrigger value="cadastro">Cadastro</TabsTrigger>
         <TabsTrigger value="socios">Sócios</TabsTrigger>
         <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
+        <TabsTrigger value="manejo">Manejo</TabsTrigger>
         <TabsTrigger value="genetica">Genética</TabsTrigger>
       </TabsList>
 
@@ -381,6 +383,17 @@ export function AnimalDetailSections({
           farmId={farmId}
           animalId={animal.id}
           ownership={ownership}
+        />
+      </TabsContent>
+
+      <TabsContent value="manejo">
+        <AnimalManagementSection
+          farmId={farmId}
+          animalId={animal.id}
+          animal={animal}
+          animals={animals}
+          ownership={ownership}
+          profile={profile ?? undefined}
         />
       </TabsContent>
 

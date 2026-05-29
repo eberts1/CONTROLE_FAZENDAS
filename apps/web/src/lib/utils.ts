@@ -44,6 +44,72 @@ export const geneticMaterialTypeLabels: Record<string, string> = {
   EMBRIAO: 'Embrião',
 };
 
+export const adBannerContentTypeLabels: Record<string, string> = {
+  EMBRIAO: 'Embrião',
+  SEMEN: 'Sêmen',
+  ASPIRACAO: 'Aspiração',
+};
+
+export const adBannerAspectRatioLabels: Record<string, string> = {
+  '16:9': 'Banner 16:9 (paisagem)',
+  '4:5': 'Feed 4:5 (Instagram)',
+};
+
+export const AD_BANNER_COMMERCIAL_CUSTOM = '__custom__';
+
+export const adBannerCommercialMessages = [
+  {
+    value: 'genetica-selecionada',
+    label: 'Genética selecionada',
+    text: 'Genética selecionada para acelerar resultados no rebanho.',
+  },
+  {
+    value: 'investimento-elite',
+    label: 'Investimento em elite',
+    text: 'Investimento em genética de elite para o seu projeto pecuário.',
+  },
+  {
+    value: 'disponivel-hub',
+    label: 'Disponível no Hub',
+    text: 'Disponível agora no Hub Fazendas.',
+  },
+  {
+    value: 'melhoramento-genetico',
+    label: 'Melhoramento genético',
+    text: 'Oportunidade única de melhoramento genético para o seu rebanho.',
+  },
+  {
+    value: 'qualidade-campo',
+    label: 'Qualidade comprovada',
+    text: 'Qualidade comprovada, resultados no campo.',
+  },
+  {
+    value: 'genetica-premium',
+    label: 'Genética premium',
+    text: 'Genética premium para quem busca excelência.',
+  },
+  {
+    value: 'proxima-geracao',
+    label: 'Próxima geração',
+    text: 'Garanta a próxima geração do seu rebanho com genética de ponta.',
+  },
+  {
+    value: 'potencial-comprovado',
+    label: 'Potencial comprovado',
+    text: 'Potencial genético comprovado em progênie de elite.',
+  },
+] as const;
+
+export const adBannerDefaultCommercialMessage = adBannerCommercialMessages[0].text;
+
+export function resolveAdBannerCommercialSelection(subtitle?: string): string {
+  const trimmed = subtitle?.trim();
+  if (!trimmed) return adBannerCommercialMessages[0].value;
+
+  const match = adBannerCommercialMessages.find((preset) => preset.text === trimmed);
+  return match?.value ?? AD_BANNER_COMMERCIAL_CUSTOM;
+}
+
 export const stockMovementTypeLabels: Record<string, string> = {
   ENTRADA: 'Entrada',
   SAIDA: 'Saída',
@@ -117,4 +183,36 @@ export const animalExpenseTypeLabels: Record<string, string> = {
   MANEJO: 'Manejo',
   REPRODUCAO: 'Reprodução',
   OUTRO: 'Outro',
+};
+
+export const animalManagementCategoryLabels: Record<string, string> = {
+  SAUDE: 'Saúde',
+  REPRODUTIVO: 'Reprodutivo',
+  NUTRICAO: 'Nutrição',
+  MANEJO_GERAL: 'Manejo geral',
+};
+
+export const animalManagementEventTypeLabels: Record<string, string> = {
+  OBSERVACAO_CLINICA: 'Observação clínica',
+  TRATAMENTO_DOENCA: 'Tratamento / doença',
+  MEDICACAO: 'Medicação',
+  VACINACAO: 'Vacinação',
+  EXAME: 'Exame',
+  INSEMINACAO: 'Inseminação',
+  DOADOR_INSEMINACAO: 'Usado em inseminação',
+  MONTA_NATURAL: 'Monta natural',
+  DIAGNOSTICO_GESTACAO: 'Diagnóstico de gestação',
+  PARTO_ABORTO: 'Parto / aborto',
+  SUPLEMENTACAO: 'Suplementação',
+  MUDANCA_DIETA: 'Mudança de dieta',
+  PESAGEM: 'Pesagem',
+  MOVIMENTACAO: 'Movimentação',
+  IDENTIFICACAO: 'Identificação / marcação',
+  OUTRO: 'Outro',
+};
+
+export const gestationResultLabels: Record<string, string> = {
+  POSITIVO: 'Positivo',
+  NEGATIVO: 'Negativo',
+  INDETERMINADO: 'Indeterminado',
 };

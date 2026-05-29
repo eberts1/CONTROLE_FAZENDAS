@@ -38,6 +38,11 @@ export class FarmEventsController {
     return this.farmEventsService.findAll(farmId);
   }
 
+  @Get('executive-summary')
+  getExecutiveSummary(@Param('farmId') farmId: string) {
+    return this.farmEventsService.getExecutiveSummary(farmId);
+  }
+
   @Get(':id')
   findOne(@Param('farmId') farmId: string, @Param('id') id: string) {
     return this.farmEventsService.findOne(farmId, id);
