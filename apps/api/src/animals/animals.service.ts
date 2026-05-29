@@ -20,6 +20,9 @@ import { PrismaService } from '../prisma/prisma.module';
 import { CreateAnimalDto, UpdateAnimalDto } from '../common/dto';
 
 import { AbczSyncService } from '../abcz/abcz-sync.service';
+import { AnimalOwnershipService } from '../animal-ownership/animal-ownership.service';
+import { PartnersService } from '../partners/partners.service';
+import { decimalToNumber } from '../common/decimal.util';
 
 
 
@@ -28,6 +31,7 @@ type AnimalWithSnapshot = Prisma.AnimalGetPayload<{
     abczSnapshot: { select: { id: true } };
     sire: { select: { id: true; tag: true; name: true } };
     dam: { select: { id: true; tag: true; name: true } };
+    ownership: { include: { partner: true } };
   };
 }>;
 
@@ -47,6 +51,10 @@ export class AnimalsService {
 
     private abczSync: AbczSyncService,
 
+    private ownershipService: AnimalOwnershipService,
+
+    private partnersService: PartnersService,
+
   ) {}
 
 
@@ -55,6 +63,10 @@ export class AnimalsService {
     abczSnapshot: { select: { id: true } },
     sire: { select: { id: true, tag: true, name: true } },
     dam: { select: { id: true, tag: true, name: true } },
+    ownership: {
+      include: { partner: true },
+      orderBy: [{ isPrimary: 'desc' as const }, { ownershipPercent: 'desc' as const }],
+    },
   } satisfies Prisma.AnimalInclude;
 
 
@@ -108,6 +120,16 @@ export class AnimalsService {
       dam: animal.dam
         ? { id: animal.dam.id, tag: animal.dam.tag, name: animal.dam.name }
         : undefined,
+      ownership: animal.ownership?.map((record) => ({
+        id: record.id,
+        animalId: record.animalId,
+        partnerId: record.partnerId,
+        ownershipPercent: decimalToNumber(record.ownershipPercent) ?? 0,
+        isPrimary: record.isPrimary,
+        partner: this.partnersService.toDto(record.partner),
+        createdAt: record.createdAt.toISOString(),
+        updatedAt: record.updatedAt.toISOString(),
+      })),
 
       createdAt: animal.createdAt.toISOString(),
 
@@ -331,6 +353,8 @@ export class AnimalsService {
       } catch (error) {
         this.logger.error(`Falha ao gravar perfil ABCZ do animal ${animal.id}`, error);
       }
+
+      await this.ownershipService.initializeDefault(animal.id, farmId);
 
       const refreshed = await this.prisma.animal.findUniqueOrThrow({
 

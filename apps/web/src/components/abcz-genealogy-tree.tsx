@@ -136,11 +136,14 @@ export function AbczGenealogyTree({ entries, className }: AbczGenealogyTreeProps
 
   return (
     <div className={cn('space-y-2', className)}>
+      <p className="text-xs text-muted-foreground md:hidden">
+        Deslize horizontalmente para ver mais gerações
+      </p>
       <p className="text-xs text-muted-foreground">
         Árvore genealógica — da esquerda (animal) para a direita (bisavós)
       </p>
       <div className="overflow-x-auto rounded-lg border bg-gradient-to-br from-muted/30 to-muted/10 p-4">
-        <div className="flex min-h-[360px] min-w-max items-stretch gap-1">
+        <div className="flex min-h-[240px] min-w-max items-stretch gap-1 md:min-h-[360px]">
           {grid.map((nodes, generation) => (
             <Fragment key={generation}>
               {generation > 0 && <PedigreeConnector generation={generation} />}

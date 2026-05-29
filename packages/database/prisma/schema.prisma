@@ -57,6 +57,128 @@ enum StockMovementType {
   AJUSTE
 }
 
+enum AnimalSaleType {
+  ASPIRACAO
+  VENDA_ANIMAL
+  VENDA_SEMEN
+  VENDA_EMBRIAO
+  SERVICO_ACASALAMENTO
+  OUTRO
+}
+
+enum FarmEventType {
+  LEILAO
+  VENDA_EXTERNA
+  VENDA_FAZENDA
+  OUTRO
+}
+
+enum FarmEventStatus {
+  PLANEJADO
+  EM_ANDAMENTO
+  CONCLUIDO
+  CANCELADO
+}
+
+enum SaleAssetScope {
+  PRODUTO_GENETICO
+  SERVICO_REPRODUTIVO
+  COTA_ANIMAL
+  ANIMAL_INTEIRO
+}
+
+enum PaymentCondition {
+  A_VISTA
+  PARCELADO
+}
+
+enum AnimalExpenseType {
+  VETERINARIO
+  ALIMENTACAO
+  MANEJO
+  REPRODUCAO
+  OUTRO
+}
+
+enum FinanceSection {
+  COTIDIANO
+  FIXOS_RECORRENTES
+  OPERACIONAL
+  PESSOAL_FOLHA
+  PECUARIA_EVENTOS
+  INVESTIMENTOS
+  PARCEIROS
+}
+
+enum LedgerEntryType {
+  RECEITA
+  DESPESA
+}
+
+enum LedgerScope {
+  FAZENDA
+  EVENTO
+  ANIMAL
+  ANIMAL_EVENTO
+  AREA
+  FUNCIONARIO
+}
+
+enum LedgerCategory {
+  VENDA_ANIMAL
+  VENDA_GENETICO
+  OUTRA_RECEITA
+  APORTE_PARCEIRO
+  COMPRA_INSUMO
+  COMBUSTIVEL
+  MANUTENCAO
+  ALIMENTACAO
+  VETERINARIO
+  REPRODUCAO
+  DESLOCAMENTO
+  COMISSAO_LEILAO
+  HOSPEDAGEM
+  ENERGIA
+  AGUA
+  TELEFONE_INTERNET
+  ARRENDAMENTO
+  SEGURO
+  FINANCIAMENTO
+  IMPOSTO_TAXA
+  SALARIO
+  FERIAS_13
+  ENCARGOS
+  ADIANTAMENTO
+  BENEFICIO
+  MAQUINA_EQUIPAMENTO
+  BENFEITORIA
+  TERRA_MELHORIA
+  DISTRIBUICAO_PARCEIRO
+  OUTRA_DESPESA
+}
+
+enum LedgerSource {
+  MANUAL
+  ANIMAL_SALE
+  ANIMAL_EXPENSE
+  RECORRENTE
+  FOLHA_PAGAMENTO
+}
+
+enum RecurrenceFrequency {
+  MENSAL
+  BIMESTRAL
+  TRIMESTRAL
+  SEMESTRAL
+  ANUAL
+}
+
+enum PayrollRunStatus {
+  RASCUNHO
+  FECHADO
+  PAGO
+}
+
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
@@ -66,6 +188,10 @@ model User {
   farms          FarmUser[]
   records        ProcessRecord[]
   stockMovements StockMovement[]
+  animalSales    AnimalSale[]
+  animalExpenses AnimalExpense[]
+  ledgerEntries  FarmLedgerEntry[]
+  payrollRuns    PayrollRun[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 }
@@ -79,6 +205,14 @@ model Farm {
   processes   Process[]
   animals     Animal[]
   geneticLots GeneticLot[]
+  partners    Partner[]
+  animalSales AnimalSale[]
+  animalExpenses AnimalExpense[]
+  events              FarmEvent[]
+  ledgerEntries       FarmLedgerEntry[]
+  recurringTemplates  RecurringLedgerTemplate[]
+  employees           Employee[]
+  payrollRuns         PayrollRun[]
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 }
@@ -103,7 +237,8 @@ model Area {
   hectares    Float?
   description String?
   farm        Farm            @relation(fields: [farmId], references: [id], onDelete: Cascade)
-  records     ProcessRecord[]
+  records       ProcessRecord[]
+  ledgerEntries FarmLedgerEntry[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
@@ -171,6 +306,11 @@ model Animal {
   dammedOffspring    Animal[]        @relation("AnimalDam")
   geneticLots        GeneticLot[]
   abczSnapshot       AnimalAbczSnapshot?
+  ownership          AnimalOwnership[]
+  ownershipHistory   AnimalOwnershipHistory[]
+  sales              AnimalSale[]
+  expenses           AnimalExpense[]
+  ledgerEntries      FarmLedgerEntry[]
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
@@ -275,4 +415,296 @@ model StockMovement {
 
   @@index([geneticLotId])
   @@index([createdById])
+}
+
+model FarmEvent {
+  id                  String           @id @default(uuid())
+  farmId              String
+  type                FarmEventType
+  status              FarmEventStatus  @default(PLANEJADO)
+  name                String
+  location            String?
+  startDate           DateTime?
+  endDate             DateTime?
+  organizer           String?
+  commissionPercent   Decimal?         @db.Decimal(5, 2)
+  notes               String?
+  farm                Farm             @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  sales               AnimalSale[]
+  expenses            AnimalExpense[]
+  ledgerEntries       FarmLedgerEntry[]
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@index([farmId])
+}
+
+model Partner {
+  id                   String                    @id @default(uuid())
+  farmId               String
+  name                 String
+  document             String?
+  email                String?
+  phone                String?
+  notes                String?
+  farm                 Farm                      @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  ownerships           AnimalOwnership[]
+  saleAllocations      AnimalSaleAllocation[]
+  expenseAllocations   AnimalExpenseAllocation[]
+  purchasesAsBuyer     AnimalSale[]              @relation("SaleBuyerPartner")
+  ledgerEntries        FarmLedgerEntry[]
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+
+  @@index([farmId])
+}
+
+model AnimalOwnershipHistory {
+  id              String     @id @default(uuid())
+  animalId        String
+  saleId          String?    @unique
+  effectiveAt     DateTime
+  beforeSnapshot  Json
+  afterSnapshot   Json
+  animal          Animal     @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  sale            AnimalSale? @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  createdAt       DateTime   @default(now())
+
+  @@index([animalId])
+}
+
+model AnimalOwnership {
+  id                String   @id @default(uuid())
+  animalId          String
+  partnerId         String
+  ownershipPercent  Decimal  @db.Decimal(5, 2)
+  isPrimary         Boolean  @default(false)
+  animal            Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  partner           Partner  @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([animalId, partnerId])
+  @@index([animalId])
+  @@index([partnerId])
+}
+
+model AnimalSale {
+  id                      String                  @id @default(uuid())
+  animalId                String
+  farmId                  String
+  eventId                 String?
+  type                    AnimalSaleType
+  assetScope              SaleAssetScope?
+  quotaPercent            Decimal?                @db.Decimal(5, 2)
+  applyOwnershipTransfer  Boolean                 @default(false)
+  buyerPartnerId          String?
+  sellerPartnerIds        String[]                @default([])
+  description             String
+  totalAmount             Decimal                 @db.Decimal(12, 2)
+  transactionDate         DateTime
+  commissionPercent       Decimal?                @db.Decimal(5, 2)
+  paymentCondition        PaymentCondition?
+  unitValue               Decimal?                @db.Decimal(12, 2)
+  quantity                Int?
+  captures                Int?
+  notes                   String?
+  createdById             String
+  animal                  Animal                  @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  farm                    Farm                    @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  event                   FarmEvent?              @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  buyerPartner            Partner?                @relation("SaleBuyerPartner", fields: [buyerPartnerId], references: [id], onDelete: SetNull)
+  createdBy               User                    @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  allocations             AnimalSaleAllocation[]
+  ownershipHistory        AnimalOwnershipHistory?
+  ledgerEntry             FarmLedgerEntry?
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+
+  @@index([animalId])
+  @@index([farmId])
+  @@index([eventId])
+  @@index([createdById])
+  @@index([buyerPartnerId])
+}
+
+model AnimalSaleAllocation {
+  id                String     @id @default(uuid())
+  saleId            String
+  partnerId         String
+  ownershipPercent  Decimal    @db.Decimal(5, 2)
+  grossAmount       Decimal    @db.Decimal(12, 2)
+  discountPercent   Decimal?   @db.Decimal(5, 2)
+  discountPercent2  Decimal?   @db.Decimal(5, 2)
+  discountAmount    Decimal    @db.Decimal(12, 2)
+  netAmount         Decimal    @db.Decimal(12, 2)
+  entryAmount       Decimal?   @db.Decimal(12, 2)
+  sale              AnimalSale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  partner           Partner    @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+
+  @@index([saleId])
+  @@index([partnerId])
+}
+
+model AnimalExpense {
+  id                  String                      @id @default(uuid())
+  animalId            String
+  farmId              String
+  eventId             String?
+  type                AnimalExpenseType
+  description         String
+  totalAmount         Decimal                     @db.Decimal(12, 2)
+  expenseDate         DateTime
+  splitAmongPartners  Boolean                     @default(true)
+  notes               String?
+  createdById         String
+  animal              Animal                      @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  farm                Farm                        @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  event               FarmEvent?                  @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  createdBy           User                        @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  allocations         AnimalExpenseAllocation[]
+  ledgerEntry         FarmLedgerEntry?
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
+
+  @@index([animalId])
+  @@index([farmId])
+  @@index([eventId])
+  @@index([createdById])
+}
+
+model FarmLedgerEntry {
+  id                    String                   @id @default(uuid())
+  farmId                String
+  section               FinanceSection
+  type                  LedgerEntryType
+  category              LedgerCategory
+  scope                 LedgerScope              @default(FAZENDA)
+  source                LedgerSource             @default(MANUAL)
+  description           String
+  amount                Decimal                  @db.Decimal(12, 2)
+  entryDate             DateTime
+  dueDate               DateTime?
+  paidAt                DateTime?
+  eventId               String?
+  animalId              String?
+  areaId                String?
+  employeeId            String?
+  partnerId             String?
+  animalSaleId          String?                  @unique
+  animalExpenseId       String?                  @unique
+  recurringTemplateId   String?
+  payrollRunId          String?
+  notes                 String?
+  createdById           String
+  farm                  Farm                     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  event                 FarmEvent?               @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  animal                Animal?                  @relation(fields: [animalId], references: [id], onDelete: SetNull)
+  area                  Area?                    @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  employee              Employee?                @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  partner               Partner?                 @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  animalSale            AnimalSale?              @relation(fields: [animalSaleId], references: [id], onDelete: Cascade)
+  animalExpense         AnimalExpense?           @relation(fields: [animalExpenseId], references: [id], onDelete: Cascade)
+  recurringTemplate     RecurringLedgerTemplate? @relation(fields: [recurringTemplateId], references: [id], onDelete: SetNull)
+  payrollRun            PayrollRun?              @relation(fields: [payrollRunId], references: [id], onDelete: SetNull)
+  createdBy             User                     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@index([farmId])
+  @@index([section])
+  @@index([entryDate])
+  @@index([eventId])
+  @@index([animalId])
+  @@index([createdById])
+}
+
+model RecurringLedgerTemplate {
+  id              String              @id @default(uuid())
+  farmId          String
+  section         FinanceSection      @default(FIXOS_RECORRENTES)
+  type            LedgerEntryType
+  category        LedgerCategory
+  description     String
+  amount          Decimal             @db.Decimal(12, 2)
+  frequency       RecurrenceFrequency @default(MENSAL)
+  dayOfMonth      Int                 @default(1)
+  startDate       DateTime
+  endDate         DateTime?
+  active          Boolean             @default(true)
+  notes           String?
+  farm            Farm                @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  generatedEntries FarmLedgerEntry[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([farmId])
+}
+
+model Employee {
+  id            String            @id @default(uuid())
+  farmId        String
+  name          String
+  document      String?
+  role          String?
+  baseSalary    Decimal?          @db.Decimal(12, 2)
+  admissionDate DateTime?
+  active        Boolean           @default(true)
+  notes         String?
+  farm          Farm              @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  payrollLines  PayrollLine[]
+  ledgerEntries FarmLedgerEntry[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([farmId])
+}
+
+model PayrollRun {
+  id            String           @id @default(uuid())
+  farmId        String
+  referenceMonth DateTime
+  status        PayrollRunStatus @default(RASCUNHO)
+  description   String?
+  totalAmount   Decimal          @default(0) @db.Decimal(12, 2)
+  paidAt        DateTime?
+  createdById   String
+  farm          Farm             @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  createdBy     User             @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  lines         PayrollLine[]
+  ledgerEntries FarmLedgerEntry[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([farmId, referenceMonth])
+  @@index([farmId])
+}
+
+model PayrollLine {
+  id            String     @id @default(uuid())
+  payrollRunId  String
+  employeeId    String
+  description   String?
+  grossAmount   Decimal    @db.Decimal(12, 2)
+  deductions    Decimal    @default(0) @db.Decimal(12, 2)
+  netAmount     Decimal    @db.Decimal(12, 2)
+  payrollRun    PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  employee      Employee   @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@unique([payrollRunId, employeeId])
+  @@index([payrollRunId])
+  @@index([employeeId])
+}
+
+model AnimalExpenseAllocation {
+  id                String        @id @default(uuid())
+  expenseId         String
+  partnerId         String
+  ownershipPercent  Decimal       @db.Decimal(5, 2)
+  allocatedAmount   Decimal       @db.Decimal(12, 2)
+  expense           AnimalExpense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  partner           Partner       @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+
+  @@index([expenseId])
+  @@index([partnerId])
 }

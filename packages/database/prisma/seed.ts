@@ -8,7 +8,11 @@ import {
   AnimalStatus,
   GeneticMaterialType,
   StockMovementType,
+  AnimalSaleType,
+  PaymentCondition,
+  AnimalExpenseType,
 } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -270,6 +274,147 @@ async function main() {
       createdById: manager.id,
     },
   });
+
+  const partnerCasaBranca = await prisma.partner.upsert({
+    where: { id: '00000000-0000-4000-8000-000000000701' },
+    update: {},
+    create: {
+      id: '00000000-0000-4000-8000-000000000701',
+      farmId: farm.id,
+      name: 'Casa Branca Agropastoril Ltda',
+      document: '12.345.678/0001-90',
+    },
+  });
+
+  const partnerDaniella = await prisma.partner.upsert({
+    where: { id: '00000000-0000-4000-8000-000000000702' },
+    update: {},
+    create: {
+      id: '00000000-0000-4000-8000-000000000702',
+      farmId: farm.id,
+      name: 'Daniella de Souza Pinto Muradás',
+      document: '123.456.789-00',
+    },
+  });
+
+  await prisma.partner.upsert({
+    where: { id: '00000000-0000-4000-8000-000000000703' },
+    update: {},
+    create: {
+      id: '00000000-0000-4000-8000-000000000703',
+      farmId: farm.id,
+      name: farm.name,
+    },
+  });
+
+  await prisma.animalOwnership.upsert({
+    where: { id: '00000000-0000-4000-8000-000000000711' },
+    update: {},
+    create: {
+      id: '00000000-0000-4000-8000-000000000711',
+      animalId: bull.id,
+      partnerId: partnerCasaBranca.id,
+      ownershipPercent: new Decimal(100),
+      isPrimary: true,
+    },
+  });
+
+  await prisma.animalOwnership.upsert({
+    where: { id: '00000000-0000-4000-8000-000000000712' },
+    update: {},
+    create: {
+      id: '00000000-0000-4000-8000-000000000712',
+      animalId: cow.id,
+      partnerId: partnerCasaBranca.id,
+      ownershipPercent: new Decimal(50),
+      isPrimary: true,
+    },
+  });
+
+  await prisma.animalOwnership.upsert({
+    where: { id: '00000000-0000-4000-8000-000000000713' },
+    update: {},
+    create: {
+      id: '00000000-0000-4000-8000-000000000713',
+      animalId: cow.id,
+      partnerId: partnerDaniella.id,
+      ownershipPercent: new Decimal(50),
+      isPrimary: false,
+    },
+  });
+
+  const aspirationSale = await prisma.animalSale.upsert({
+    where: { id: '00000000-0000-4000-8000-000000000721' },
+    update: {},
+    create: {
+      id: '00000000-0000-4000-8000-000000000721',
+      animalId: cow.id,
+      farmId: farm.id,
+      type: AnimalSaleType.ASPIRACAO,
+      description:
+        'ASPIRAÇÃO - Nelore PO (REM2484N FIV GENETICA ADITIVA X LIVRE ACASALAMENTO)',
+      totalAmount: new Decimal(285000),
+      transactionDate: new Date('2026-05-15'),
+      commissionPercent: new Decimal(8),
+      paymentCondition: PaymentCondition.A_VISTA,
+      unitValue: new Decimal(9500),
+      quantity: 1,
+      captures: 30,
+      createdById: manager.id,
+    },
+  });
+
+  for (const [index, partner] of [partnerCasaBranca, partnerDaniella].entries()) {
+    const gross = new Decimal(142500);
+    const discount = new Decimal(21375);
+    const net = new Decimal(121125);
+    await prisma.animalSaleAllocation.upsert({
+      where: { id: `00000000-0000-4000-8000-00000000073${index}` },
+      update: {},
+      create: {
+        id: `00000000-0000-4000-8000-00000000073${index}`,
+        saleId: aspirationSale.id,
+        partnerId: partner.id,
+        ownershipPercent: new Decimal(50),
+        grossAmount: gross,
+        discountPercent: new Decimal(15),
+        discountPercent2: new Decimal(0),
+        discountAmount: discount,
+        netAmount: net,
+        entryAmount: net,
+      },
+    });
+  }
+
+  const sharedExpense = await prisma.animalExpense.upsert({
+    where: { id: '00000000-0000-4000-8000-000000000731' },
+    update: {},
+    create: {
+      id: '00000000-0000-4000-8000-000000000731',
+      animalId: cow.id,
+      farmId: farm.id,
+      type: AnimalExpenseType.REPRODUCAO,
+      description: 'Custos de reprodução — aspiração',
+      totalAmount: new Decimal(10000),
+      expenseDate: new Date('2026-05-10'),
+      splitAmongPartners: true,
+      createdById: manager.id,
+    },
+  });
+
+  for (const [index, partner] of [partnerCasaBranca, partnerDaniella].entries()) {
+    await prisma.animalExpenseAllocation.upsert({
+      where: { id: `00000000-0000-4000-8000-00000000074${index}` },
+      update: {},
+      create: {
+        id: `00000000-0000-4000-8000-00000000074${index}`,
+        expenseId: sharedExpense.id,
+        partnerId: partner.id,
+        ownershipPercent: new Decimal(50),
+        allocatedAmount: new Decimal(5000),
+      },
+    });
+  }
 
   console.log('Seed concluído!');
   console.log('Admin: admin@controlefazendas.com / admin123');

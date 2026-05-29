@@ -27,6 +27,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageHeader } from '@/components/layout/page-header';
+import { ResponsiveDataList } from '@/components/ui/responsive-data-list';
 import { api } from '@/lib/api-client';
 import { useFarmContext } from '@/hooks/use-farm-context';
 import { useToast } from '@/components/ui/use-toast';
@@ -190,50 +192,50 @@ export default function MaterialGeneticoPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Material Genético</h1>
-          <p className="text-muted-foreground">Controle de estoque de sêmen e embriões vinculado aos animais doadores</p>
-        </div>
-        <Button onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancelar' : 'Novo lote'}</Button>
-      </div>
+      <PageHeader
+        title="Material Genético"
+        description="Controle de estoque de sêmen e embriões vinculado aos animais doadores"
+        actions={
+          <Button onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancelar' : 'Novo lote'}</Button>
+        }
+      />
 
       {summary && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total em estoque</CardTitle>
+            <CardHeader className="pb-1">
+              <CardTitle className="text-xs font-medium text-muted-foreground sm:text-sm">Total em estoque</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">{summary.totalDoses}</p>
+              <p className="text-xl font-bold sm:text-2xl">{summary.totalDoses}</p>
               <p className="text-xs text-muted-foreground">doses</p>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Sêmen / Embriões</CardTitle>
+            <CardHeader className="pb-1">
+              <CardTitle className="text-xs font-medium text-muted-foreground sm:text-sm">Sêmen / Embriões</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">
+              <p className="text-xl font-bold sm:text-2xl">
                 {summary.semenDoses} / {summary.embryoDoses}
               </p>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Estoque baixo</CardTitle>
+            <CardHeader className="pb-1">
+              <CardTitle className="text-xs font-medium text-muted-foreground sm:text-sm">Estoque baixo</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">{summary.lowStockLots}</p>
+              <p className="text-xl font-bold sm:text-2xl">{summary.lowStockLots}</p>
               <p className="text-xs text-muted-foreground">lotes (&lt; 5 doses)</p>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Vencimento próximo</CardTitle>
+            <CardHeader className="pb-1">
+              <CardTitle className="text-xs font-medium text-muted-foreground sm:text-sm">Vencimento próximo</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">{summary.expiringSoonLots}</p>
+              <p className="text-xl font-bold sm:text-2xl">{summary.expiringSoonLots}</p>
               <p className="text-xs text-muted-foreground">próximos 30 dias</p>
             </CardContent>
           </Card>
@@ -244,11 +246,11 @@ export default function MaterialGeneticoPage() {
         <CardHeader>
           <CardTitle className="text-base">Filtros</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-4">
+        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-2">
             <Label>Tipo</Label>
             <Select value={materialFilter} onValueChange={setMaterialFilter}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -264,7 +266,7 @@ export default function MaterialGeneticoPage() {
           <div className="space-y-2">
             <Label>Animal doador</Label>
             <Select value={animalFilter} onValueChange={setAnimalFilter}>
-              <SelectTrigger className="w-52">
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -277,7 +279,7 @@ export default function MaterialGeneticoPage() {
               </SelectContent>
             </Select>
           </div>
-          <label className="flex items-end gap-2 pb-2 text-sm">
+          <label className="flex items-center gap-2 text-sm sm:col-span-2 lg:col-span-1">
             <input
               type="checkbox"
               checked={lowStockOnly}
@@ -396,63 +398,77 @@ export default function MaterialGeneticoPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          {isLoading ? (
-            <p className="text-muted-foreground">Carregando...</p>
-          ) : lots.length === 0 ? (
-            <div className="flex h-48 items-center justify-center rounded-xl border border-dashed">
-              <p className="text-muted-foreground">Nenhum lote cadastrado.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto rounded-xl border">
-              <table className="w-full text-sm">
-                <thead className="border-b bg-muted/50">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-medium">Lote</th>
-                    <th className="px-4 py-3 text-left font-medium">Doador</th>
-                    <th className="px-4 py-3 text-left font-medium">Tipo</th>
-                    <th className="px-4 py-3 text-left font-medium">Saldo</th>
-                    <th className="px-4 py-3 text-left font-medium">Armazenamento</th>
-                    <th className="px-4 py-3 text-left font-medium">Validade</th>
-                    <th className="px-4 py-3 text-right font-medium">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lots.map((lot) => (
-                    <tr
-                      key={lot.id}
-                      className={`border-b last:border-0 ${activeLotId === lot.id ? 'bg-muted/30' : ''}`}
-                    >
-                      <td className="px-4 py-3 font-medium">{lot.lotCode}</td>
-                      <td className="px-4 py-3">
-                        {lot.sourceAnimal
-                          ? `${lot.sourceAnimal.tag}${lot.sourceAnimal.name ? ` (${lot.sourceAnimal.name})` : ''}`
-                          : '—'}
-                      </td>
-                      <td className="px-4 py-3">{geneticMaterialTypeLabels[lot.materialType]}</td>
-                      <td className="px-4 py-3 font-semibold">{lot.currentDoses}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{storageLabel(lot)}</td>
-                      <td className="px-4 py-3">
-                        {lot.expiresAt ? formatDateOnly(lot.expiresAt) : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-right space-x-1">
-                        <Button variant="outline" size="sm" onClick={() => setActiveLotId(lot.id)}>
-                          Movimentar
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive"
-                          onClick={() => deleteLotMutation.mutate(lot.id)}
-                        >
-                          Excluir
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <ResponsiveDataList
+            rows={lots}
+            isLoading={isLoading}
+            emptyMessage="Nenhum lote cadastrado."
+            keyExtractor={(lot) => lot.id}
+            getRowClassName={(lot) => (activeLotId === lot.id ? 'border-primary/40 bg-muted/30' : undefined)}
+            mobileTitle={(lot) => lot.lotCode}
+            mobileSubtitle={(lot) =>
+              lot.sourceAnimal
+                ? `${lot.sourceAnimal.tag}${lot.sourceAnimal.name ? ` (${lot.sourceAnimal.name})` : ''}`
+                : undefined
+            }
+            columns={[
+              {
+                key: 'lotCode',
+                header: 'Lote',
+                cell: (lot) => <span className="font-medium">{lot.lotCode}</span>,
+                hideOnMobile: true,
+              },
+              {
+                key: 'donor',
+                header: 'Doador',
+                cell: (lot) =>
+                  lot.sourceAnimal
+                    ? `${lot.sourceAnimal.tag}${lot.sourceAnimal.name ? ` (${lot.sourceAnimal.name})` : ''}`
+                    : '—',
+                hideOnMobile: true,
+              },
+              {
+                key: 'type',
+                header: 'Tipo',
+                cell: (lot) => geneticMaterialTypeLabels[lot.materialType],
+              },
+              {
+                key: 'balance',
+                header: 'Saldo',
+                cell: (lot) => <span className="font-semibold">{lot.currentDoses}</span>,
+              },
+              {
+                key: 'storage',
+                header: 'Armazenamento',
+                cell: (lot) => storageLabel(lot),
+                mobileFullWidth: true,
+              },
+              {
+                key: 'expiresAt',
+                header: 'Validade',
+                cell: (lot) => (lot.expiresAt ? formatDateOnly(lot.expiresAt) : '—'),
+              },
+            ]}
+            actions={(lot) => (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full sm:w-auto"
+                  onClick={() => setActiveLotId(lot.id)}
+                >
+                  Movimentar
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-destructive sm:w-auto"
+                  onClick={() => deleteLotMutation.mutate(lot.id)}
+                >
+                  Excluir
+                </Button>
+              </>
+            )}
+          />
         </div>
 
         <div>
@@ -538,7 +554,7 @@ export default function MaterialGeneticoPage() {
             </Card>
           ) : (
             <Card>
-              <CardContent className="flex h-48 items-center justify-center p-6">
+              <CardContent className="flex min-h-32 items-center justify-center p-6">
                 <p className="text-center text-sm text-muted-foreground">
                   Selecione um lote e clique em Movimentar para registrar entradas, saídas ou ajustes.
                 </p>

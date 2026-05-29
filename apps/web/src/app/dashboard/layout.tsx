@@ -5,11 +5,13 @@ import { Sidebar } from '@/components/layout/sidebar';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard>
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen min-w-0">
         <Sidebar />
-        <div className="flex flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
           <Header />
-          <main className="flex-1 overflow-auto p-6">{children}</main>
+          <main className="max-w-full flex-1 overflow-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:p-6">
+            {children}
+          </main>
         </div>
       </div>
     </AuthGuard>

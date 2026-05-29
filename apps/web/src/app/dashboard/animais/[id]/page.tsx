@@ -18,6 +18,7 @@ import { api } from '@/lib/api-client';
 import { useFarmContext } from '@/hooks/use-farm-context';
 import { useToast } from '@/components/ui/use-toast';
 import { AnimalDetailSections } from '@/components/animal-detail-sections';
+import { PageHeader } from '@/components/layout/page-header';
 import { suggestParentsFromAbczProfile } from '@/lib/suggest-abcz-parents';
 
 function birthDateToInput(value: string | null | undefined): string {
@@ -228,55 +229,60 @@ export default function AnimalDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
+      <PageHeader
+        backLink={
           <Button variant="ghost" size="sm" className="-ml-2" asChild>
             <Link href="/dashboard/animais">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Voltar para animais
             </Link>
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold">{title}</h1>
-            <p className="text-muted-foreground">
-              Genealogia e avaliação são lidas do banco da aplicação (não consulta ABCZ ao abrir)
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {canSyncAbczToDb && !editing && (
-            <Button
-              variant="secondary"
-              disabled={syncAbczMutation.isPending}
-              onClick={() => syncAbczMutation.mutate()}
-            >
-              <Database className="mr-2 h-4 w-4" />
-              {syncAbczMutation.isPending
-                ? 'Buscando na ABCZ e salvando...'
-                : 'Buscar na ABCZ e salvar no banco'}
-            </Button>
-          )}
-          {editing ? (
-            <>
-              <Button variant="outline" onClick={handleCancelEdit}>
-                <X className="mr-2 h-4 w-4" />
-                Cancelar
-              </Button>
+        }
+        title={title}
+        description="Genealogia e avaliação são lidas do banco da aplicação (não consulta ABCZ ao abrir)"
+        actions={
+          <>
+            {canSyncAbczToDb && !editing && (
               <Button
-                disabled={updateMutation.isPending}
-                onClick={form.handleSubmit((data) => updateMutation.mutate(data))}
+                variant="secondary"
+                className="w-full sm:w-auto"
+                disabled={syncAbczMutation.isPending}
+                onClick={() => syncAbczMutation.mutate()}
               >
-                {updateMutation.isPending ? 'Salvando...' : 'Salvar alterações'}
+                <Database className="mr-2 h-4 w-4 shrink-0" />
+                <span className="sm:hidden">
+                  {syncAbczMutation.isPending ? 'Salvando...' : 'Buscar ABCZ'}
+                </span>
+                <span className="hidden sm:inline">
+                  {syncAbczMutation.isPending
+                    ? 'Buscando na ABCZ e salvando...'
+                    : 'Buscar na ABCZ e salvar no banco'}
+                </span>
               </Button>
-            </>
-          ) : (
-            <Button onClick={() => setEditing(true)}>
-              <Pencil className="mr-2 h-4 w-4" />
-              Editar dados
-            </Button>
-          )}
-        </div>
-      </div>
+            )}
+            {editing ? (
+              <>
+                <Button variant="outline" className="w-full sm:w-auto" onClick={handleCancelEdit}>
+                  <X className="mr-2 h-4 w-4" />
+                  Cancelar
+                </Button>
+                <Button
+                  className="w-full sm:w-auto"
+                  disabled={updateMutation.isPending}
+                  onClick={form.handleSubmit((data) => updateMutation.mutate(data))}
+                >
+                  {updateMutation.isPending ? 'Salvando...' : 'Salvar alterações'}
+                </Button>
+              </>
+            ) : (
+              <Button className="w-full sm:w-auto" onClick={() => setEditing(true)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar dados
+              </Button>
+            )}
+          </>
+        }
+      />
 
       <AnimalDetailSections
         animal={animal}
@@ -286,6 +292,7 @@ export default function AnimalDetailPage() {
         missingProfileSnapshot={missingProfileSnapshot}
         editing={editing}
         form={form}
+        farmId={activeFarmId}
       />
     </div>
   );

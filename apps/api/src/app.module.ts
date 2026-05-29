@@ -11,5 +11,31 @@ import { AnimalsModule } from './animals/animals.module';
 import { GeneticLotsModule } from './genetic-lots/genetic-lots.module';
 import { AbczModule } from './abcz/abcz.module';
 import { KinshipModule } from './kinship/kinship.module';
-@Module({ imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, AuthModule, UsersModule, FarmsModule, AreasModule, ProcessesModule, ProcessRecordsModule, AnimalsModule, GeneticLotsModule, AbczModule, KinshipModule] })
+import { PartnersModule } from './partners/partners.module';
+import { AnimalOwnershipModule } from './animal-ownership/animal-ownership.module';
+import { AnimalFinancesModule } from './animal-finances/animal-finances.module';
+import { FarmEventsModule } from './farm-events/farm-events.module';
+import { FarmFinancesModule } from './farm-finances/farm-finances.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    PrismaModule,
+    AuthModule,
+    UsersModule,
+    FarmsModule,
+    AreasModule,
+    ProcessesModule,
+    ProcessRecordsModule,
+    AnimalsModule,
+    GeneticLotsModule,
+    AbczModule,
+    KinshipModule,
+    PartnersModule,
+    AnimalOwnershipModule,
+    AnimalFinancesModule,
+    FarmEventsModule,
+    FarmFinancesModule,
+  ],
+})
 export class AppModule {}

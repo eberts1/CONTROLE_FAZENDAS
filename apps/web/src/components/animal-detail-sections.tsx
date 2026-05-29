@@ -9,6 +9,8 @@ import {
   UpdateAnimalInput,
 } from '@controle-fazendas/shared';
 import { AbczGenealogyTree, hasPedigreeTree } from '@/components/abcz-genealogy-tree';
+import { AnimalFinanceSection } from '@/components/animal-finance-section';
+import { AnimalOwnershipSection } from '@/components/animal-ownership-section';
 import { UseFormReturn } from 'react-hook-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -21,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { animalSexLabels, animalStatusLabels, formatDateOnly } from '@/lib/utils';
 import Link from 'next/link';
 import { ExternalLink, GitBranch } from 'lucide-react';
@@ -35,6 +38,7 @@ interface AnimalDetailSectionsProps {
   missingProfileSnapshot?: boolean;
   editing: boolean;
   form: UseFormReturn<UpdateAnimalInput>;
+  farmId: string;
 }
 
 function DetailField({ label, value }: { label: string; value: React.ReactNode }) {
@@ -100,7 +104,7 @@ function EvaluationSection({ profile }: { profile: AnimalAbczProfileDto }) {
             )}
           </dl>
           {evaluation.deps.length > 0 && (
-            <div className="max-h-64 overflow-y-auto rounded border">
+            <div className="max-h-64 overflow-x-auto overflow-y-auto rounded border">
               <table className="w-full text-xs">
                 <thead className="bg-muted/50">
                   <tr>
@@ -113,7 +117,9 @@ function EvaluationSection({ profile }: { profile: AnimalAbczProfileDto }) {
                 <tbody>
                   {evaluation.deps.map((dep, depIndex) => (
                     <tr key={depIndex} className="border-t">
-                      <td className="px-2 py-1">{dep.description}</td>
+                      <td className="max-w-[200px] break-words px-2 py-1 sm:max-w-none">
+                        {dep.description}
+                      </td>
                       <td className="px-2 py-1 text-right font-mono">{dep.dep}</td>
                       <td className="px-2 py-1 text-right">{dep.accuracy ?? '—'}</td>
                       <td className="px-2 py-1 text-right">{dep.deca ?? '—'}</td>
@@ -137,16 +143,26 @@ export function AnimalDetailSections({
   missingProfileSnapshot,
   editing,
   form,
+  farmId,
 }: AnimalDetailSectionsProps) {
   const { register, watch, setValue, formState: { errors } } = form;
 
   const genealogyEntries = profile?.genealogy ?? [];
   const showPedigree = genealogyEntries.length > 0 && hasPedigreeTree(genealogyEntries);
+  const ownership = animal.ownership ?? [];
 
   return (
-    <div className="space-y-6">
+    <Tabs defaultValue="cadastro" className="space-y-6">
+      <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
+        <TabsTrigger value="cadastro">Cadastro</TabsTrigger>
+        <TabsTrigger value="socios">Sócios</TabsTrigger>
+        <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
+        <TabsTrigger value="genetica">Genética</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="cadastro" className="space-y-6">
       <Card>
-        <CardHeader>
+        <CardHeader className="py-4 md:py-6">
           <CardTitle className="text-lg">Dados do animal</CardTitle>
         </CardHeader>
         <CardContent>
@@ -246,9 +262,9 @@ export function AnimalDetailSections({
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
+        <CardHeader className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between md:py-6">
           <CardTitle className="text-lg">Parentesco na fazenda</CardTitle>
-          <Button variant="outline" size="sm" asChild>
+          <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
             <Link href={`/dashboard/parentesco?animalId=${animal.id}`}>
               <GitBranch className="mr-2 h-4 w-4" />
               Ver filhos e netos
@@ -297,9 +313,27 @@ export function AnimalDetailSections({
           )}
         </CardContent>
       </Card>
+      </TabsContent>
 
+      <TabsContent value="socios">
+        <AnimalOwnershipSection
+          farmId={farmId}
+          animalId={animal.id}
+          initialOwnership={ownership}
+        />
+      </TabsContent>
+
+      <TabsContent value="financeiro">
+        <AnimalFinanceSection
+          farmId={farmId}
+          animalId={animal.id}
+          ownership={ownership}
+        />
+      </TabsContent>
+
+      <TabsContent value="genetica" className="space-y-6">
       <Card>
-        <CardHeader>
+        <CardHeader className="py-4 md:py-6">
           <CardTitle className="text-lg">Genealogia</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -346,7 +380,7 @@ export function AnimalDetailSections({
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="py-4 md:py-6">
           <CardTitle className="text-lg">Avaliação</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -374,6 +408,7 @@ export function AnimalDetailSections({
           )}
         </CardContent>
       </Card>
-    </div>
+      </TabsContent>
+    </Tabs>
   );
 }

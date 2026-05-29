@@ -30,6 +30,8 @@ import { animalSexLabels, animalStatusLabels, formatDateOnly } from '@/lib/utils
 import { AbczLookupPanel } from '@/components/abcz-lookup-panel';
 import { AnimalAbczDrawer } from '@/components/animal-abcz-drawer';
 import { AnimalParentSelects } from '@/components/animal-parent-selects';
+import { PageHeader } from '@/components/layout/page-header';
+import { ResponsiveDataList } from '@/components/ui/responsive-data-list';
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
 
@@ -162,25 +164,25 @@ export default function AnimaisPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Animais</h1>
-          <p className="text-muted-foreground">Cadastro central do rebanho — hub para manejo, vendas e material genético</p>
-        </div>
-        <Button
-          onClick={() => {
-            if (showForm) {
-              resetCreateForm();
-              setShowForm(false);
-            } else {
-              resetCreateForm();
-              setShowForm(true);
-            }
-          }}
-        >
-          {showForm ? 'Cancelar' : 'Novo animal'}
-        </Button>
-      </div>
+      <PageHeader
+        title="Animais"
+        description="Cadastro central do rebanho — hub para manejo, vendas e material genético"
+        actions={
+          <Button
+            onClick={() => {
+              if (showForm) {
+                resetCreateForm();
+                setShowForm(false);
+              } else {
+                resetCreateForm();
+                setShowForm(true);
+              }
+            }}
+          >
+            {showForm ? 'Cancelar' : 'Novo animal'}
+          </Button>
+        }
+      />
 
       {showForm && (
         <Card>
@@ -296,64 +298,72 @@ export default function AnimaisPage() {
         </Card>
       )}
 
-      {isLoading ? (
-        <p className="text-muted-foreground">Carregando...</p>
-      ) : animals.length === 0 ? (
-        <div className="flex h-48 items-center justify-center rounded-xl border border-dashed">
-          <p className="text-muted-foreground">Nenhum animal cadastrado.</p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-xl border">
-          <table className="w-full text-sm">
-            <thead className="border-b bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium">Identificação</th>
-                <th className="px-4 py-3 text-left font-medium">Nome</th>
-                <th className="px-4 py-3 text-left font-medium">Raça</th>
-                <th className="px-4 py-3 text-left font-medium">ABCZ</th>
-                <th className="px-4 py-3 text-left font-medium">Sexo</th>
-                <th className="px-4 py-3 text-left font-medium">Status</th>
-                <th className="px-4 py-3 text-left font-medium">Nascimento</th>
-                <th className="px-4 py-3 text-right font-medium">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {animals.map((animal) => (
-                <tr key={animal.id} className="border-b last:border-0">
-                  <td className="px-4 py-3 font-medium">{animal.tag}</td>
-                  <td className="px-4 py-3">{animal.name ?? '—'}</td>
-                  <td className="px-4 py-3">{animal.breed ?? '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {animal.abczSerie && animal.abczRgn
-                      ? `${animal.abczSerie} ${animal.abczRgn}`
-                      : '—'}
-                  </td>
-                  <td className="px-4 py-3">{animalSexLabels[animal.sex]}</td>
-                  <td className="px-4 py-3">{animalStatusLabels[animal.status]}</td>
-                  <td className="px-4 py-3">
-                    {animal.birthDate ? formatDateOnly(animal.birthDate) : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/dashboard/animais/${animal.id}`}>Ver dados</Link>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive"
-                        onClick={() => deleteMutation.mutate(animal.id)}
-                      >
-                        Excluir
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <ResponsiveDataList
+        rows={animals}
+        isLoading={isLoading}
+        emptyMessage="Nenhum animal cadastrado."
+        keyExtractor={(animal) => animal.id}
+        mobileTitle={(animal) => animal.tag}
+        mobileSubtitle={(animal) => animal.name ?? undefined}
+        columns={[
+          {
+            key: 'tag',
+            header: 'Identificação',
+            cell: (animal) => <span className="font-medium">{animal.tag}</span>,
+            hideOnMobile: true,
+          },
+          {
+            key: 'name',
+            header: 'Nome',
+            cell: (animal) => animal.name ?? '—',
+            hideOnMobile: true,
+          },
+          {
+            key: 'breed',
+            header: 'Raça',
+            cell: (animal) => animal.breed ?? '—',
+          },
+          {
+            key: 'abcz',
+            header: 'ABCZ',
+            cell: (animal) =>
+              animal.abczSerie && animal.abczRgn
+                ? `${animal.abczSerie} ${animal.abczRgn}`
+                : '—',
+            mobileFullWidth: true,
+          },
+          {
+            key: 'sex',
+            header: 'Sexo',
+            cell: (animal) => animalSexLabels[animal.sex],
+          },
+          {
+            key: 'status',
+            header: 'Status',
+            cell: (animal) => animalStatusLabels[animal.status],
+          },
+          {
+            key: 'birthDate',
+            header: 'Nascimento',
+            cell: (animal) => (animal.birthDate ? formatDateOnly(animal.birthDate) : '—'),
+          },
+        ]}
+        actions={(animal) => (
+          <>
+            <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
+              <Link href={`/dashboard/animais/${animal.id}`}>Ver dados</Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-destructive sm:w-auto"
+              onClick={() => deleteMutation.mutate(animal.id)}
+            >
+              Excluir
+            </Button>
+          </>
+        )}
+      />
       <AnimalAbczDrawer
         farmId={activeFarmId}
         animal={drawerAnimal}
