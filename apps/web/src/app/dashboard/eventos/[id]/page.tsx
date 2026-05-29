@@ -18,6 +18,7 @@ import { api } from '@/lib/api-client';
 import { useFarmContext } from '@/hooks/use-farm-context';
 import { PageHeader } from '@/components/layout/page-header';
 import { EventSaleForm } from '@/components/event-sale-form';
+import { EventSaleMapImport } from '@/components/event-sale-map-import';
 import {
   animalSaleTypeLabels,
   animalStatusLabels,
@@ -35,6 +36,7 @@ export default function EventoDetailPage() {
   const { activeFarmId } = useFarmContext();
   const queryClient = useQueryClient();
   const [showSaleForm, setShowSaleForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const { data: event, isLoading } = useQuery({
     queryKey: ['farm-event', activeFarmId, eventId],
@@ -165,11 +167,32 @@ export default function EventoDetailPage() {
         </Card>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button variant="outline" onClick={() => setShowImport(!showImport)}>
+          {showImport ? 'Fechar importação' : 'Importar mapa PDF'}
+        </Button>
         <Button onClick={() => setShowSaleForm(!showSaleForm)}>
           {showSaleForm ? 'Cancelar' : 'Adicionar venda'}
         </Button>
       </div>
+
+      {showImport && (
+        <EventSaleMapImport
+          farmId={activeFarmId}
+          eventId={eventId}
+          onSuccess={() => {
+            setShowImport(false);
+            queryClient.invalidateQueries({ queryKey: ['farm-event-sales', activeFarmId, eventId] });
+            queryClient.invalidateQueries({
+              queryKey: ['farm-event-summary', activeFarmId, eventId],
+            });
+            queryClient.invalidateQueries({ queryKey: ['installments', activeFarmId] });
+            queryClient.invalidateQueries({ queryKey: ['installments-summary', activeFarmId] });
+            queryClient.invalidateQueries({ queryKey: ['animals', activeFarmId] });
+            queryClient.invalidateQueries({ queryKey: ['partners', activeFarmId] });
+          }}
+        />
+      )}
 
       {showSaleForm && (
         <EventSaleForm

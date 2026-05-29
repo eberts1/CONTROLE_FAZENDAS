@@ -29,16 +29,19 @@ import { useToast } from '@/components/ui/use-toast';
 import { animalSexLabels, animalStatusLabels, formatDateOnly } from '@/lib/utils';
 import { AbczLookupPanel } from '@/components/abcz-lookup-panel';
 import { AnimalAbczDrawer } from '@/components/animal-abcz-drawer';
+import { AnimalAbczBulkDrawer } from '@/components/animal-abcz-bulk-drawer';
 import { AnimalParentSelects } from '@/components/animal-parent-selects';
 import { PageHeader } from '@/components/layout/page-header';
 import { ResponsiveDataList } from '@/components/ui/responsive-data-list';
-import { useState, useCallback } from 'react';
+import { canQueryAnimalOnAbcz } from '@/lib/resolve-animal-abcz-query';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 
 const emptyAnimalForm = (): CreateAnimalInput => ({
   tag: '',
   name: '',
   breed: '',
+  pelagem: '',
   birthDate: '',
   notes: '',
   sex: AnimalSex.MACHO,
@@ -60,6 +63,8 @@ export default function AnimaisPage() {
   const [showForm, setShowForm] = useState(false);
   const [drawerAnimal, setDrawerAnimal] = useState<AnimalDto | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [bulkDrawerOpen, setBulkDrawerOpen] = useState(false);
   const [abczProfileSnapshot, setAbczProfileSnapshot] = useState<AbczProfilePreviewDto | null>(
     null,
   );
@@ -143,6 +148,54 @@ export default function AnimaisPage() {
       });
     },
   });
+
+  const selectableAnimals = useMemo(
+    () => animals.filter(canQueryAnimalOnAbcz),
+    [animals],
+  );
+
+  const animalsWithoutProfile = useMemo(
+    () => animals.filter((a) => !a.hasAbczProfile && canQueryAnimalOnAbcz(a)),
+    [animals],
+  );
+
+  const selectedAnimals = useMemo(
+    () => animals.filter((a) => selectedIds.has(a.id)),
+    [animals, selectedIds],
+  );
+
+  const allSelectableSelected =
+    selectableAnimals.length > 0 &&
+    selectableAnimals.every((a) => selectedIds.has(a.id));
+
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const valid = new Set(animals.map((a) => a.id));
+      const next = new Set([...prev].filter((id) => valid.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [animals]);
+
+  const toggleRowSelection = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (allSelectableSelected) {
+      setSelectedIds(new Set());
+      return;
+    }
+    setSelectedIds(new Set(selectableAnimals.map((a) => a.id)));
+  };
+
+  const selectWithoutProfile = () => {
+    setSelectedIds(new Set(animalsWithoutProfile.map((a) => a.id)));
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -237,6 +290,10 @@ export default function AnimaisPage() {
                 <Input id="breed" {...register('breed')} />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="pelagem">Pelagem</Label>
+                <Input id="pelagem" {...register('pelagem')} />
+              </div>
+              <div className="space-y-2">
                 <Label>Sexo</Label>
                 <Select value={watch('sex')} onValueChange={(v) => setValue('sex', v as AnimalSex)}>
                   <SelectTrigger>
@@ -298,11 +355,38 @@ export default function AnimaisPage() {
         </Card>
       )}
 
+      {selectedIds.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-4 py-3">
+          <span className="text-sm font-medium">{selectedIds.size} selecionado(s)</span>
+          <Button
+            size="sm"
+            onClick={() => setBulkDrawerOpen(true)}
+            disabled={selectedAnimals.length === 0}
+          >
+            Consultar ABCZ em fila
+          </Button>
+          <Button variant="outline" size="sm" onClick={selectWithoutProfile}>
+            Selecionar sem perfil ABCZ
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+            Limpar seleção
+          </Button>
+        </div>
+      )}
+
       <ResponsiveDataList
         rows={animals}
         isLoading={isLoading}
         emptyMessage="Nenhum animal cadastrado."
         keyExtractor={(animal) => animal.id}
+        selection={{
+          selectedIds,
+          onToggleRow: toggleRowSelection,
+          onToggleAll: toggleSelectAll,
+          allSelected: allSelectableSelected,
+          indeterminate: selectedIds.size > 0 && !allSelectableSelected,
+          isRowSelectable: canQueryAnimalOnAbcz,
+        }}
         mobileTitle={(animal) => animal.tag}
         mobileSubtitle={(animal) => animal.name ?? undefined}
         columns={[
@@ -369,6 +453,15 @@ export default function AnimaisPage() {
         animal={drawerAnimal}
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
+      />
+      <AnimalAbczBulkDrawer
+        farmId={activeFarmId}
+        animals={selectedAnimals}
+        open={bulkDrawerOpen}
+        onOpenChange={setBulkDrawerOpen}
+        onComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ['animals', activeFarmId] });
+        }}
       />
     </div>
   );

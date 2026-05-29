@@ -163,6 +163,13 @@ enum LedgerSource {
   ANIMAL_EXPENSE
   RECORRENTE
   FOLHA_PAGAMENTO
+  PARCELA_VENDA
+}
+
+enum InstallmentStatus {
+  ABERTA
+  PAGA
+  CANCELADA
 }
 
 enum RecurrenceFrequency {
@@ -284,6 +291,7 @@ model Animal {
   tag                String
   name               String?
   breed              String?
+  pelagem            String?
   sex                AnimalSex
   birthDate          DateTime?
   status             AnimalStatus    @default(ATIVO)
@@ -452,6 +460,7 @@ model Partner {
   saleAllocations      AnimalSaleAllocation[]
   expenseAllocations   AnimalExpenseAllocation[]
   purchasesAsBuyer     AnimalSale[]              @relation("SaleBuyerPartner")
+  installmentPlans     SaleInstallmentPlan[]
   ledgerEntries        FarmLedgerEntry[]
   createdAt            DateTime                  @default(now())
   updatedAt            DateTime                  @updatedAt
@@ -518,6 +527,8 @@ model AnimalSale {
   allocations             AnimalSaleAllocation[]
   ownershipHistory        AnimalOwnershipHistory?
   ledgerEntry             FarmLedgerEntry?
+  installmentPlans        SaleInstallmentPlan[]
+  auctionLotNumber        Int?
   createdAt               DateTime                @default(now())
   updatedAt               DateTime                @updatedAt
 
@@ -541,9 +552,52 @@ model AnimalSaleAllocation {
   entryAmount       Decimal?   @db.Decimal(12, 2)
   sale              AnimalSale @relation(fields: [saleId], references: [id], onDelete: Cascade)
   partner           Partner    @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  installmentPlan   SaleInstallmentPlan?
 
   @@index([saleId])
   @@index([partnerId])
+}
+
+model SaleInstallmentPlan {
+  id              String              @id @default(uuid())
+  saleId          String
+  allocationId    String?             @unique
+  buyerPartnerId  String
+  auctionLotNumber Int?
+  netAmount       Decimal             @db.Decimal(12, 2)
+  bidValue        Decimal?            @db.Decimal(12, 2)
+  notes           String?
+  sale            AnimalSale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  allocation      AnimalSaleAllocation? @relation(fields: [allocationId], references: [id], onDelete: SetNull)
+  buyer           Partner             @relation(fields: [buyerPartnerId], references: [id], onDelete: Restrict)
+  installments    SaleInstallment[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([saleId])
+  @@index([buyerPartnerId])
+}
+
+model SaleInstallment {
+  id              String              @id @default(uuid())
+  planId          String
+  sequence        Int
+  label           String
+  amount          Decimal             @db.Decimal(12, 2)
+  dueDate         DateTime
+  status          InstallmentStatus   @default(ABERTA)
+  paidAt          DateTime?
+  paidAmount      Decimal?            @db.Decimal(12, 2)
+  paymentNotes    String?
+  plan            SaleInstallmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  ledgerEntry     FarmLedgerEntry?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@unique([planId, sequence])
+  @@index([planId])
+  @@index([dueDate, status])
+  @@index([status])
 }
 
 model AnimalExpense {
@@ -593,6 +647,7 @@ model FarmLedgerEntry {
   partnerId             String?
   animalSaleId          String?                  @unique
   animalExpenseId       String?                  @unique
+  saleInstallmentId     String?                  @unique
   recurringTemplateId   String?
   payrollRunId          String?
   notes                 String?
@@ -605,6 +660,7 @@ model FarmLedgerEntry {
   partner               Partner?                 @relation(fields: [partnerId], references: [id], onDelete: SetNull)
   animalSale            AnimalSale?              @relation(fields: [animalSaleId], references: [id], onDelete: Cascade)
   animalExpense         AnimalExpense?           @relation(fields: [animalExpenseId], references: [id], onDelete: Cascade)
+  saleInstallment       SaleInstallment?         @relation(fields: [saleInstallmentId], references: [id], onDelete: SetNull)
   recurringTemplate     RecurringLedgerTemplate? @relation(fields: [recurringTemplateId], references: [id], onDelete: SetNull)
   payrollRun            PayrollRun?              @relation(fields: [payrollRunId], references: [id], onDelete: SetNull)
   createdBy             User                     @relation(fields: [createdById], references: [id], onDelete: Cascade)

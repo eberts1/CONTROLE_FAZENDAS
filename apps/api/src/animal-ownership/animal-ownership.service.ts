@@ -108,6 +108,41 @@ export class AnimalOwnershipService {
     });
   }
 
+  /** Garante exatamente um titular antes de rateios financeiros (ex.: importação de leilão). */
+  async ensureSinglePrimaryOwner(animalId: string, farmId: string) {
+    await this.initializeDefault(animalId, farmId);
+
+    const records = await this.prisma.animalOwnership.findMany({
+      where: { animalId },
+      orderBy: [{ ownershipPercent: 'desc' }, { createdAt: 'asc' }],
+    });
+
+    if (records.length === 0) {
+      throw new BadRequestException('Animal sem proprietários definidos');
+    }
+
+    const primaryRecords = records.filter((record) => record.isPrimary);
+    if (primaryRecords.length === 1) return;
+
+    const primaryId =
+      primaryRecords.length === 0
+        ? records[0].id
+        : primaryRecords.sort(
+            (a, b) =>
+              (decimalToNumber(b.ownershipPercent) ?? 0) -
+              (decimalToNumber(a.ownershipPercent) ?? 0),
+          )[0].id;
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const record of records) {
+        await tx.animalOwnership.update({
+          where: { id: record.id },
+          data: { isPrimary: record.id === primaryId },
+        });
+      }
+    });
+  }
+
   async replace(farmId: string, animalId: string, dto: ReplaceAnimalOwnershipDto) {
     await this.ensureAnimal(farmId, animalId);
 

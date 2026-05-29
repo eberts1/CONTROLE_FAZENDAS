@@ -18,17 +18,57 @@ import { animalSexLabels } from '@/lib/utils';
 import { UseFormSetValue } from 'react-hook-form';
 import { AbczProfileContent } from '@/components/abcz-profile-content';
 
+type AbczFormFields = Pick<
+  CreateAnimalInput,
+  | 'tag'
+  | 'name'
+  | 'breed'
+  | 'pelagem'
+  | 'birthDate'
+  | 'notes'
+  | 'sex'
+  | 'abczAnimalId'
+  | 'abczSerie'
+  | 'abczRgn'
+  | 'abczRgd'
+  | 'abczBreedCode'
+  | 'abczCategoryCode'
+  | 'abczOwnerId'
+  | 'abczSourceUrl'
+>;
+
 interface AbczLookupPanelProps {
   setValue: UseFormSetValue<CreateAnimalInput>;
   onProfileChange?: (profile: AbczProfilePreviewDto | null) => void;
+  /** Só preenche campos vazios (edição de animal existente). */
+  fillEmptyOnly?: boolean;
+  getValues?: () => Partial<AbczFormFields>;
+  initialSerie?: string;
+  initialRgn?: string;
 }
 
-export function AbczLookupPanel({ setValue, onProfileChange }: AbczLookupPanelProps) {
+function isBlank(value: string | undefined | null): boolean {
+  return !value?.trim();
+}
+
+export function AbczLookupPanel({
+  setValue,
+  onProfileChange,
+  fillEmptyOnly = false,
+  getValues,
+  initialSerie = '',
+  initialRgn = '',
+}: AbczLookupPanelProps) {
   const { toast } = useToast();
-  const [serie, setSerie] = useState('');
-  const [rgn, setRgn] = useState('');
+  const [serie, setSerie] = useState(initialSerie);
+  const [rgn, setRgn] = useState(initialRgn);
   const [lookup, setLookup] = useState<AbczLookupResult | null>(null);
   const [selected, setSelected] = useState<AbczAnimalCandidate | null>(null);
+
+  useEffect(() => {
+    if (initialSerie) setSerie(initialSerie);
+    if (initialRgn) setRgn(initialRgn);
+  }, [initialSerie, initialRgn]);
 
   const lookupMutation = useMutation({
     mutationFn: async () => {
@@ -106,19 +146,43 @@ export function AbczLookupPanel({ setValue, onProfileChange }: AbczLookupPanelPr
   }, [activeProfile, onProfileChange]);
 
   const applyCandidate = (candidate: AbczAnimalCandidate) => {
-    setValue('tag', candidate.registration);
-    setValue('name', candidate.name);
-    setValue('breed', candidate.breed);
-    setValue('sex', candidate.sex);
-    if (candidate.birthDate) setValue('birthDate', candidate.birthDate);
-    setValue('abczAnimalId', candidate.abczAnimalId);
-    setValue('abczSerie', candidate.serie);
-    setValue('abczRgn', candidate.rgn);
-    setValue('abczRgd', candidate.rgd);
-    setValue('abczBreedCode', candidate.breedCode);
-    setValue('abczCategoryCode', candidate.categoryCode);
-    setValue('abczOwnerId', candidate.ownerId);
-    setValue('abczSourceUrl', lookup?.sourceUrl ?? 'https://zebu.org.br/ConsultaIndividual');
+    const current = getValues?.() ?? {};
+
+    const isFieldEmpty = (key: keyof AbczFormFields): boolean => {
+      const val = current[key];
+      if (val === undefined || val === null) return true;
+      if (typeof val === 'number') return false;
+      return isBlank(String(val));
+    };
+
+    const setIfEmpty = <K extends keyof AbczFormFields>(
+      key: K,
+      value: AbczFormFields[K] | undefined,
+    ) => {
+      if (value === undefined || value === null || value === '') return;
+      if (fillEmptyOnly && !isFieldEmpty(key)) return;
+      setValue(key, value as CreateAnimalInput[K]);
+    };
+
+    setIfEmpty('tag', candidate.registration);
+    setIfEmpty('name', candidate.name);
+    setIfEmpty('breed', candidate.breed);
+    const coat =
+      activeProfile?.header.coat ?? lookup?.detail?.coat ?? null;
+    setIfEmpty('pelagem', coat);
+    if (!fillEmptyOnly) setValue('sex', candidate.sex);
+    if (candidate.birthDate) setIfEmpty('birthDate', candidate.birthDate);
+    setIfEmpty('abczAnimalId', candidate.abczAnimalId);
+    setIfEmpty('abczSerie', candidate.serie);
+    setIfEmpty('abczRgn', candidate.rgn);
+    setIfEmpty('abczRgd', candidate.rgd);
+    setIfEmpty('abczBreedCode', candidate.breedCode);
+    setIfEmpty('abczCategoryCode', candidate.categoryCode);
+    setIfEmpty('abczOwnerId', candidate.ownerId);
+    setIfEmpty(
+      'abczSourceUrl',
+      lookup?.sourceUrl ?? 'https://zebu.org.br/ConsultaIndividual',
+    );
 
     const situation = activeProfile?.header.situation ?? lookup?.detail?.situation;
     const extra = [
@@ -129,13 +193,21 @@ export function AbczLookupPanel({ setValue, onProfileChange }: AbczLookupPanelPr
       .filter(Boolean)
       .join(' | ');
 
-    if (extra) setValue('notes', extra);
+    if (extra) {
+      if (fillEmptyOnly && !isBlank(current.notes)) {
+        // mantém observações existentes
+      } else {
+        setValue('notes', extra);
+      }
+    }
 
     onProfileChange?.(activeProfile);
 
     toast({
-      title: 'Dados aplicados',
-      description: `Brinco preenchido com ${candidate.registration}. Ajuste se necessário antes de salvar.`,
+      title: fillEmptyOnly ? 'Campos vazios preenchidos' : 'Dados aplicados',
+      description: fillEmptyOnly
+        ? 'Somente campos em branco foram atualizados. Revise e salve as alterações.'
+        : `Brinco preenchido com ${candidate.registration}. Ajuste se necessário antes de salvar.`,
     });
   };
 
@@ -144,8 +216,9 @@ export function AbczLookupPanel({ setValue, onProfileChange }: AbczLookupPanelPr
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Consultar na ABCZ (Zebu)</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Informe série e RGN para buscar genealogia e avaliação. Ao salvar o animal, esses dados
-          serão gravados no banco da aplicação (não é consulta ao vivo na tela de detalhes).
+          {fillEmptyOnly
+            ? 'Informe série e RGN para consultar a ABCZ. Ao aplicar, somente campos vazios do cadastro serão preenchidos. Ao salvar, genealogia e avaliação serão gravadas no banco se ainda não existirem.'
+            : 'Informe série e RGN para buscar genealogia e avaliação. Ao salvar o animal, esses dados serão gravados no banco da aplicação (não é consulta ao vivo na tela de detalhes).'}
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -252,7 +325,7 @@ export function AbczLookupPanel({ setValue, onProfileChange }: AbczLookupPanelPr
                 }
                 onClick={() => selected && applyCandidate(selected)}
               >
-                Aplicar ao formulário
+                {fillEmptyOnly ? 'Preencher campos vazios' : 'Aplicar ao formulário'}
               </Button>
               <Button
                 type="button"

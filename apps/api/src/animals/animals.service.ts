@@ -85,6 +85,8 @@ export class AnimalsService {
 
       breed: animal.breed,
 
+      pelagem: animal.pelagem,
+
       sex: animal.sex as SharedAnimalSex,
 
       birthDate: animal.birthDate?.toISOString() ?? null,
@@ -334,6 +336,7 @@ export class AnimalsService {
           tag: dto.tag,
           name: dto.name,
           breed: dto.breed,
+          pelagem: dto.pelagem,
           sex: dto.sex as AnimalSex,
           birthDate: dto.birthDate ? new Date(dto.birthDate) : null,
           status: (dto.status as AnimalStatus) ?? AnimalStatus.ATIVO,
@@ -399,6 +402,7 @@ export class AnimalsService {
           tag: dto.tag,
           name: dto.name,
           breed: dto.breed,
+          pelagem: dto.pelagem,
           sex: dto.sex as AnimalSex | undefined,
           birthDate:
             dto.birthDate !== undefined
@@ -411,7 +415,11 @@ export class AnimalsService {
           ...(dto.abczAnimalId !== undefined ||
           dto.abczSerie !== undefined ||
           dto.abczRgn !== undefined ||
-          dto.abczRgd !== undefined
+          dto.abczRgd !== undefined ||
+          dto.abczBreedCode !== undefined ||
+          dto.abczCategoryCode !== undefined ||
+          dto.abczOwnerId !== undefined ||
+          dto.abczSourceUrl !== undefined
             ? this.abczData(dto)
             : {}),
           ...this.parentData(dto),
@@ -421,7 +429,22 @@ export class AnimalsService {
 
       });
 
-      return this.toDto(animal);
+      try {
+        await this.syncAbczAfterCreate(animal.id, {
+          ...dto,
+          sex: (dto.sex ?? animal.sex) as SharedAnimalSex,
+          tag: dto.tag ?? animal.tag,
+        } as CreateAnimalDto);
+      } catch (error) {
+        this.logger.error(`Falha ao gravar perfil ABCZ do animal ${animal.id}`, error);
+      }
+
+      const refreshed = await this.prisma.animal.findUniqueOrThrow({
+        where: { id: animal.id },
+        include: this.animalInclude,
+      });
+
+      return this.toDto(refreshed);
 
     } catch (e) {
 

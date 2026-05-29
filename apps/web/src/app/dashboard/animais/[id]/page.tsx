@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  AbczProfilePreviewDto,
   AnimalAbczProfileDto,
   AnimalDto,
   UpdateAnimalInput,
@@ -33,6 +34,7 @@ function animalToFormValues(animal: AnimalDto): UpdateAnimalInput {
     tag: animal.tag,
     name: animal.name ?? undefined,
     breed: animal.breed ?? undefined,
+    pelagem: animal.pelagem ?? undefined,
     sex: animal.sex,
     birthDate: birthDateToInput(animal.birthDate),
     status: animal.status,
@@ -49,6 +51,9 @@ export default function AnimalDetailPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
+  const [abczProfileSnapshot, setAbczProfileSnapshot] = useState<AbczProfilePreviewDto | null>(
+    null,
+  );
 
   const {
     data: animal,
@@ -99,15 +104,70 @@ export default function AnimalDetailPage() {
       const { data } = await api.patch<AnimalDto>(
         `/farms/${activeFarmId}/animals/${animalId}`,
         input,
+        {
+          timeout:
+            input.abczProfileSnapshot || input.abczAnimalId ? 120_000 : 30_000,
+        },
       );
       return data;
     },
-    onSuccess: (updated) => {
+    onSuccess: async (updated, variables) => {
       queryClient.setQueryData(['animal', activeFarmId, animalId], updated);
       queryClient.invalidateQueries({ queryKey: ['animals', activeFarmId] });
+
+      if (updated.hasAbczProfile) {
+        queryClient.invalidateQueries({
+          queryKey: ['animal-abcz-profile', activeFarmId, animalId],
+        });
+        try {
+          const { data: freshProfile } = await api.get<AnimalAbczProfileDto>(
+            `/farms/${activeFarmId}/animals/${animalId}/abcz-profile`,
+          );
+          queryClient.setQueryData(
+            ['animal-abcz-profile', activeFarmId, animalId],
+            freshProfile,
+          );
+          const suggested = suggestParentsFromAbczProfile(allAnimals, freshProfile, animalId);
+          if (suggested.sireId || suggested.damId) {
+            const patch: UpdateAnimalInput = {};
+            if (suggested.sireId && !updated.sireId) patch.sireId = suggested.sireId;
+            if (suggested.damId && !updated.damId) patch.damId = suggested.damId;
+            if (patch.sireId || patch.damId) {
+              const { data: patched } = await api.patch<AnimalDto>(
+                `/farms/${activeFarmId}/animals/${animalId}`,
+                patch,
+              );
+              queryClient.setQueryData(['animal', activeFarmId, animalId], patched);
+              form.reset(animalToFormValues(patched));
+              setAbczProfileSnapshot(null);
+              setEditing(false);
+              toast({
+                title: 'Animal atualizado',
+                description:
+                  'Dados salvos, perfil ABCZ gravado e vínculos de pai/mãe sugeridos foram aplicados.',
+              });
+              return;
+            }
+          }
+        } catch {
+          // perfil pode ainda estar sincronizando
+        }
+      }
+
       form.reset(animalToFormValues(updated));
+      setAbczProfileSnapshot(null);
       setEditing(false);
-      toast({ title: 'Animal atualizado', description: 'Os dados foram salvos com sucesso.' });
+      const hadAbcz = Boolean(variables.abczProfileSnapshot || variables.abczAnimalId);
+      if (hadAbcz && !updated.hasAbczProfile) {
+        toast({
+          title: 'Animal atualizado',
+          description:
+            'Cadastro salvo, mas a genealogia ABCZ não foi gravada. Tente consultar novamente.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({ title: 'Animal atualizado', description: 'Os dados foram salvos com sucesso.' });
+      }
     },
     onError: () => {
       toast({
@@ -120,7 +180,16 @@ export default function AnimalDetailPage() {
 
   const handleCancelEdit = () => {
     if (animal) form.reset(animalToFormValues(animal));
+    setAbczProfileSnapshot(null);
     setEditing(false);
+  };
+
+  const buildUpdatePayload = (data: UpdateAnimalInput): UpdateAnimalInput => {
+    const payload: UpdateAnimalInput = { ...data };
+    if (abczProfileSnapshot && !animal?.hasAbczProfile) {
+      payload.abczProfileSnapshot = abczProfileSnapshot;
+    }
+    return payload;
   };
 
   const canSyncAbczToDb = Boolean(
@@ -269,13 +338,21 @@ export default function AnimalDetailPage() {
                 <Button
                   className="w-full sm:w-auto"
                   disabled={updateMutation.isPending}
-                  onClick={form.handleSubmit((data) => updateMutation.mutate(data))}
+                  onClick={form.handleSubmit((data) =>
+                    updateMutation.mutate(buildUpdatePayload(data)),
+                  )}
                 >
                   {updateMutation.isPending ? 'Salvando...' : 'Salvar alterações'}
                 </Button>
               </>
             ) : (
-              <Button className="w-full sm:w-auto" onClick={() => setEditing(true)}>
+              <Button
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  setAbczProfileSnapshot(null);
+                  setEditing(true);
+                }}
+              >
                 <Pencil className="mr-2 h-4 w-4" />
                 Editar dados
               </Button>
@@ -293,6 +370,7 @@ export default function AnimalDetailPage() {
         editing={editing}
         form={form}
         farmId={activeFarmId}
+        onAbczProfileChange={setAbczProfileSnapshot}
       />
     </div>
   );

@@ -154,6 +154,13 @@ export enum LedgerSource {
   ANIMAL_EXPENSE = 'ANIMAL_EXPENSE',
   RECORRENTE = 'RECORRENTE',
   FOLHA_PAGAMENTO = 'FOLHA_PAGAMENTO',
+  PARCELA_VENDA = 'PARCELA_VENDA',
+}
+
+export enum InstallmentStatus {
+  ABERTA = 'ABERTA',
+  PAGA = 'PAGA',
+  CANCELADA = 'CANCELADA',
 }
 
 export enum RecurrenceFrequency {

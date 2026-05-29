@@ -16,6 +16,7 @@ import { AnimalOwnershipModule } from './animal-ownership/animal-ownership.modul
 import { AnimalFinancesModule } from './animal-finances/animal-finances.module';
 import { FarmEventsModule } from './farm-events/farm-events.module';
 import { FarmFinancesModule } from './farm-finances/farm-finances.module';
+import { SaleInstallmentsModule } from './sale-installments/sale-installments.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { FarmFinancesModule } from './farm-finances/farm-finances.module';
     AnimalFinancesModule,
     FarmEventsModule,
     FarmFinancesModule,
+    SaleInstallmentsModule,
   ],
 })
 export class AppModule {}

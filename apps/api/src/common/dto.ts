@@ -19,6 +19,37 @@ export class RefreshTokenDto {
   refreshToken!: string;
 }
 
+export class RegisterDto {
+  @ApiProperty({ example: 'João Silva' })
+  @IsString()
+  @MinLength(2)
+  name!: string;
+
+  @ApiProperty({ example: 'joao@email.com' })
+  @IsEmail()
+  email!: string;
+
+  @ApiProperty({ example: 'senha123' })
+  @IsString()
+  @MinLength(6)
+  password!: string;
+
+  @ApiProperty({ example: 'senha123' })
+  @IsString()
+  @MinLength(6)
+  confirmPassword!: string;
+
+  @ApiProperty({ example: 'Fazenda Boa Vista' })
+  @IsString()
+  @MinLength(2)
+  farmName!: string;
+
+  @ApiPropertyOptional({ example: 'Goiás, Brasil' })
+  @IsOptional()
+  @IsString()
+  farmLocation?: string;
+}
+
 export class CreateUserDto {
   @ApiProperty()
   @IsEmail()
@@ -175,6 +206,11 @@ export class CreateAnimalDto {
   @IsString()
   breed?: string;
 
+  @ApiPropertyOptional({ description: 'Pelagem do animal' })
+  @IsOptional()
+  @IsString()
+  pelagem?: string;
+
   @ApiProperty({ enum: ['MACHO', 'FEMEA'] })
   @IsString()
   sex!: string;
@@ -258,31 +294,43 @@ export class CreateAnimalDto {
 
 export class UpdateAnimalDto {
   @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   @MinLength(1)
   tag?: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   name?: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   breed?: string;
 
+  @ApiPropertyOptional({ description: 'Pelagem do animal' })
+  @IsOptional()
+  @IsString()
+  pelagem?: string;
+
   @ApiPropertyOptional({ enum: ['MACHO', 'FEMEA'] })
+  @IsOptional()
   @IsString()
   sex?: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   birthDate?: string;
 
   @ApiPropertyOptional({ enum: ['ATIVO', 'VENDIDO', 'MORTO', 'OUTRO'] })
+  @IsOptional()
   @IsString()
   status?: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   notes?: string;
 
@@ -327,6 +375,15 @@ export class UpdateAnimalDto {
   @IsOptional()
   @IsString()
   abczOwnerId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Perfil ABCZ já consultado (genealogia, avaliação) — persistido no banco local',
+  })
+  @Allow()
+  @IsOptional()
+  @IsObject()
+  abczProfileSnapshot?: Record<string, unknown>;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -1320,4 +1377,262 @@ export class CreatePayrollLineDto {
   @IsNumber()
   @Min(0)
   deductions?: number;
+}
+
+export class CreateInstallmentRowDto {
+  @ApiProperty()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  sequence!: number;
+
+  @ApiProperty()
+  @IsString()
+  label!: string;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  amount!: number;
+
+  @ApiProperty()
+  @IsString()
+  dueDate!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  markAsPaid?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  paidAt?: string;
+}
+
+export class CreateSaleInstallmentPlanDto {
+  @ApiProperty()
+  @IsString()
+  saleId!: string;
+
+  @ApiProperty()
+  @IsString()
+  buyerPartnerId!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  allocationId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  auctionLotNumber?: number;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  netAmount!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  bidValue?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @ApiProperty({ type: [CreateInstallmentRowDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateInstallmentRowDto)
+  installments!: CreateInstallmentRowDto[];
+}
+
+export class PayInstallmentDto {
+  @ApiProperty()
+  @IsString()
+  paidAt!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  paidAmount?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  paymentNotes?: string;
+}
+
+export class SaleMapImportInstallmentDto {
+  @ApiProperty()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  sequence!: number;
+
+  @ApiProperty()
+  @IsString()
+  label!: string;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  amount!: number;
+
+  @ApiProperty()
+  @IsString()
+  dueDate!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  markAsPaid?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  paidAt?: string;
+}
+
+export class SaleMapImportLotDto {
+  @ApiProperty()
+  @IsString()
+  tempId!: string;
+
+  @ApiProperty()
+  @IsBoolean()
+  selected!: boolean;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  canal!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  registration?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  animalId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  createAnimal?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  buyerName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  buyerPartnerId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  createBuyer?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  bidValue?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  captures?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  quantity?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  totalAmount?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  netAmount?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  discountAmount?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  entryAmount?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isCashPayment?: boolean;
+
+  @ApiPropertyOptional({ type: [SaleMapImportInstallmentDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SaleMapImportInstallmentDto)
+  installments?: SaleMapImportInstallmentDto[];
+}
+
+export class ImportSaleMapDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  transactionDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  pdfPassword?: string;
+
+  @ApiProperty({ type: [SaleMapImportLotDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SaleMapImportLotDto)
+  lots!: SaleMapImportLotDto[];
 }

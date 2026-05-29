@@ -9,6 +9,7 @@ import {
   LedgerEntryType,
   LedgerScope,
   LedgerSource,
+  PaymentCondition,
   PayrollRunStatus,
   Prisma,
   RecurrenceFrequency,
@@ -61,6 +62,7 @@ export class FarmFinancesService {
     partnerId: string | null;
     animalSaleId: string | null;
     animalExpenseId: string | null;
+    saleInstallmentId: string | null;
     recurringTemplateId: string | null;
     payrollRunId: string | null;
     notes: string | null;
@@ -88,6 +90,7 @@ export class FarmFinancesService {
       partnerId: row.partnerId,
       animalSaleId: row.animalSaleId,
       animalExpenseId: row.animalExpenseId,
+      saleInstallmentId: row.saleInstallmentId,
       recurringTemplateId: row.recurringTemplateId,
       payrollRunId: row.payrollRunId,
       notes: row.notes,
@@ -292,9 +295,13 @@ export class FarmFinancesService {
       transactionDate: Date;
       notes: string | null;
       createdById: string;
+      paymentCondition?: PaymentCondition | null;
     },
     tx?: Prisma.TransactionClient,
   ) {
+    if (sale.paymentCondition === PaymentCondition.PARCELADO) {
+      return;
+    }
     const db = tx ?? this.prisma;
     const meta = mapAnimalSaleToLedgerMeta({
       type: sale.type as Parameters<typeof mapAnimalSaleToLedgerMeta>[0]['type'],

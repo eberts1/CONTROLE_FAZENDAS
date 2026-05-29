@@ -25,6 +25,20 @@ export const loginSchema = z.object({
   password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
 });
 
+export const registerSchema = z
+  .object({
+    name: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres'),
+    email: z.string().email('E-mail inválido'),
+    password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
+    confirmPassword: z.string().min(6, 'Confirme a senha'),
+    farmName: z.string().min(2, 'Nome da fazenda deve ter no mínimo 2 caracteres'),
+    farmLocation: z.string().optional(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'As senhas não coincidem',
+    path: ['confirmPassword'],
+  });
+
 export const createFarmSchema = z.object({
   name: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres'),
   location: z.string().optional(),
@@ -108,6 +122,7 @@ export const createAnimalSchema = z.object({
   tag: z.string().min(1, 'Identificação obrigatória'),
   name: z.string().optional(),
   breed: z.string().optional(),
+  pelagem: z.string().optional(),
   sex: z.nativeEnum(AnimalSex),
   birthDate: z.string().optional(),
   status: z.nativeEnum(AnimalStatus).optional(),
@@ -345,7 +360,71 @@ export const createPayrollLineSchema = z.object({
   deductions: z.number().min(0).optional(),
 });
 
+export const createInstallmentRowSchema = z.object({
+  sequence: z.number().int().min(0),
+  label: z.string().min(1),
+  amount: z.number().positive(),
+  dueDate: z.string().min(1),
+  markAsPaid: z.boolean().optional(),
+  paidAt: z.string().optional(),
+});
+
+export const createSaleInstallmentPlanSchema = z.object({
+  saleId: z.string().uuid(),
+  buyerPartnerId: z.string().uuid(),
+  allocationId: z.string().uuid().optional(),
+  auctionLotNumber: z.number().int().positive().optional(),
+  netAmount: z.number().positive(),
+  bidValue: z.number().positive().optional(),
+  notes: z.string().optional(),
+  installments: z.array(createInstallmentRowSchema).min(1),
+});
+
+export const payInstallmentSchema = z.object({
+  paidAt: z.string().min(1),
+  paidAmount: z.number().positive().optional(),
+  paymentNotes: z.string().optional(),
+});
+
+export const saleMapImportInstallmentSchema = z.object({
+  sequence: z.number().int().min(0),
+  label: z.string().min(1),
+  amount: z.number().positive(),
+  dueDate: z.string().min(1),
+  markAsPaid: z.boolean().optional(),
+  paidAt: z.string().optional().nullable(),
+});
+
+export const saleMapImportLotSchema = z.object({
+  tempId: z.string().min(1),
+  selected: z.boolean(),
+  canal: z.number().int().positive(),
+  description: z.string().optional().nullable(),
+  registration: z.string().optional().nullable(),
+  animalId: z.string().uuid().optional().nullable(),
+  createAnimal: z.boolean().optional(),
+  buyerName: z.string().optional().nullable(),
+  buyerPartnerId: z.string().uuid().optional().nullable(),
+  createBuyer: z.boolean().optional(),
+  bidValue: z.number().positive().optional().nullable(),
+  captures: z.number().int().positive().optional(),
+  quantity: z.number().int().positive().optional(),
+  totalAmount: z.number().positive().optional().nullable(),
+  netAmount: z.number().positive().optional().nullable(),
+  discountAmount: z.number().min(0).optional().nullable(),
+  entryAmount: z.number().positive().optional().nullable(),
+  isCashPayment: z.boolean().optional(),
+  installments: z.array(saleMapImportInstallmentSchema).optional(),
+});
+
+export const importSaleMapSchema = z.object({
+  transactionDate: z.string().optional(),
+  pdfPassword: z.string().optional(),
+  lots: z.array(saleMapImportLotSchema).min(1),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
+export type RegisterInput = z.infer<typeof registerSchema>;
 export type CreateFarmInput = z.infer<typeof createFarmSchema>;
 export type UpdateFarmInput = z.infer<typeof updateFarmSchema>;
 export type CreateAreaInput = z.infer<typeof createAreaSchema>;
@@ -380,3 +459,8 @@ export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;
 export type UpdateEmployeeInput = z.infer<typeof updateEmployeeSchema>;
 export type CreatePayrollRunInput = z.infer<typeof createPayrollRunSchema>;
 export type CreatePayrollLineInput = z.infer<typeof createPayrollLineSchema>;
+export type CreateInstallmentRowInput = z.infer<typeof createInstallmentRowSchema>;
+export type CreateSaleInstallmentPlanInput = z.infer<typeof createSaleInstallmentPlanSchema>;
+export type PayInstallmentInput = z.infer<typeof payInstallmentSchema>;
+export type SaleMapImportLotInput = z.infer<typeof saleMapImportLotSchema>;
+export type ImportSaleMapInput = z.infer<typeof importSaleMapSchema>;

@@ -244,9 +244,17 @@ export class AbczSyncService {
         });
       }
 
+      const animalRow = await tx.animal.findUnique({
+        where: { id: animalId },
+        select: { pelagem: true },
+      });
+
       await tx.animal.update({
         where: { id: animalId },
-        data: { abczSyncedAt: fetchedAt },
+        data: {
+          abczSyncedAt: fetchedAt,
+          ...(!animalRow?.pelagem?.trim() && header.coat ? { pelagem: header.coat } : {}),
+        },
       });
     });
 

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
@@ -41,7 +42,6 @@ export function LoginForm() {
     formState: { errors },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: 'admin@controlefazendas.com', password: 'admin123' },
   });
 
   async function onSubmit(data: LoginInput) {
@@ -85,6 +85,13 @@ export function LoginForm() {
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Entrando...' : 'Entrar'}
           </Button>
+
+          <p className="text-center text-sm text-muted-foreground">
+            Não tem conta?{' '}
+            <Link href="/register" className="font-medium text-primary hover:underline">
+              Cadastre-se
+            </Link>
+          </p>
         </form>
       </CardContent>
     </Card>

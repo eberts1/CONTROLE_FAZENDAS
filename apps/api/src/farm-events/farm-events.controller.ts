@@ -6,13 +6,18 @@ import {
   Param,
   Patch,
   Post,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { FarmEventsService } from './farm-events.service';
+import { SaleMapImportService, UploadedPdfFile } from './sale-map-import.service';
 import {
   CreateEventAnimalSaleDto,
   CreateFarmEventDto,
+  ImportSaleMapDto,
   UpdateFarmEventDto,
 } from '../common/dto';
 import { CurrentUser, AuthUser } from '../common/decorators';
@@ -23,7 +28,10 @@ import { FarmAccessGuard, JwtAuthGuard } from '../common/guards';
 @UseGuards(JwtAuthGuard, FarmAccessGuard)
 @Controller('farms/:farmId/events')
 export class FarmEventsController {
-  constructor(private farmEventsService: FarmEventsService) {}
+  constructor(
+    private farmEventsService: FarmEventsService,
+    private saleMapImportService: SaleMapImportService,
+  ) {}
 
   @Get()
   findAll(@Param('farmId') farmId: string) {
@@ -72,5 +80,51 @@ export class FarmEventsController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.farmEventsService.createSale(farmId, eventId, dto, user);
+  }
+
+  @Post(':id/import/preview')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        password: { type: 'string' },
+      },
+      required: ['file'],
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 30 * 1024 * 1024 },
+    }),
+  )
+  previewImport(
+    @Param('farmId') farmId: string,
+    @Param('id') eventId: string,
+    @UploadedFile() file: UploadedPdfFile,
+    @Body('password') password?: string,
+  ) {
+    return this.saleMapImportService.previewFromPdf(farmId, eventId, file, password);
+  }
+
+  @Post(':id/import')
+  importSaleMap(
+    @Param('farmId') farmId: string,
+    @Param('id') eventId: string,
+    @Body() dto: ImportSaleMapDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.saleMapImportService.importLots(farmId, eventId, dto, user);
+  }
+
+  @Post(':id/import/sync-installments')
+  syncInstallmentPlans(
+    @Param('farmId') farmId: string,
+    @Param('id') eventId: string,
+    @Body() dto: ImportSaleMapDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.saleMapImportService.syncInstallmentPlans(farmId, eventId, dto, user);
   }
 }

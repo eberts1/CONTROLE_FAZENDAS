@@ -1,9 +1,10 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
+import { FarmRole, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.module';
-import { LoginDto } from '../common/dto';
+import { LoginDto, RegisterDto } from '../common/dto';
 
 @Injectable()
 export class AuthService {
@@ -42,6 +43,57 @@ export class AuthService {
       ...tokens,
       user: this.sanitizeUser(user),
       farms: farms.map((f) => this.formatFarm(f)),
+    };
+  }
+
+  async register(dto: RegisterDto) {
+    if (dto.password !== dto.confirmPassword) {
+      throw new BadRequestException('As senhas não coincidem');
+    }
+
+    const existing = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    if (existing) {
+      throw new ConflictException('E-mail já cadastrado');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 12);
+
+    const { user, farm } = await this.prisma.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: {
+          email: dto.email,
+          password: passwordHash,
+          name: dto.name,
+          role: Role.MANAGER,
+        },
+      });
+
+      const createdFarm = await tx.farm.create({
+        data: {
+          name: dto.farmName,
+          location: dto.farmLocation?.trim() || null,
+        },
+      });
+
+      await tx.farmUser.create({
+        data: {
+          userId: createdUser.id,
+          farmId: createdFarm.id,
+          role: FarmRole.OWNER,
+        },
+      });
+
+      return { user: createdUser, farm: createdFarm };
+    });
+
+    const tokens = await this.generateTokens(user.id, user.email, user.role);
+
+    return {
+      ...tokens,
+      user: this.sanitizeUser(user),
+      farms: [this.formatFarm(farm)],
     };
   }
 

@@ -2,7 +2,7 @@ import { Body, Controller, Get, Post, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
-import { LoginDto, RefreshTokenDto } from '../common/dto';
+import { LoginDto, RefreshTokenDto, RegisterDto } from '../common/dto';
 import { CurrentUser, Public, AuthUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards';
 
@@ -15,6 +15,14 @@ export class AuthController {
   @Post('login')
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.login(dto);
+    this.setAuthCookies(res, result.accessToken, result.refreshToken);
+    return result;
+  }
+
+  @Public()
+  @Post('register')
+  async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.register(dto);
     this.setAuthCookies(res, result.accessToken, result.refreshToken);
     return result;
   }

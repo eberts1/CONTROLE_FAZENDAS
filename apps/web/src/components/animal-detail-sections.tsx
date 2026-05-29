@@ -1,17 +1,21 @@
 'use client';
 
 import {
+  AbczProfilePreviewDto,
   AnimalAbczProfileDto,
   AnimalDto,
   AnimalSex,
   AnimalStatus,
+  CreateAnimalInput,
   GenealogyPedigreeEntry,
   UpdateAnimalInput,
+  parseAbczRegistration,
 } from '@controle-fazendas/shared';
+import { AbczLookupPanel } from '@/components/abcz-lookup-panel';
 import { AbczGenealogyTree, hasPedigreeTree } from '@/components/abcz-genealogy-tree';
 import { AnimalFinanceSection } from '@/components/animal-finance-section';
 import { AnimalOwnershipSection } from '@/components/animal-ownership-section';
-import { UseFormReturn } from 'react-hook-form';
+import { UseFormReturn, UseFormSetValue } from 'react-hook-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,6 +43,14 @@ interface AnimalDetailSectionsProps {
   editing: boolean;
   form: UseFormReturn<UpdateAnimalInput>;
   farmId: string;
+  onAbczProfileChange?: (profile: AbczProfilePreviewDto | null) => void;
+}
+
+function birthDateToInput(value: string | null | undefined): string {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toISOString().slice(0, 10);
 }
 
 function DetailField({ label, value }: { label: string; value: React.ReactNode }) {
@@ -144,8 +156,13 @@ export function AnimalDetailSections({
   editing,
   form,
   farmId,
+  onAbczProfileChange,
 }: AnimalDetailSectionsProps) {
-  const { register, watch, setValue, formState: { errors } } = form;
+  const { register, watch, setValue, getValues, formState: { errors } } = form;
+
+  const parsedTag = parseAbczRegistration(animal.tag);
+  const abczInitialSerie = animal.abczSerie ?? parsedTag?.serie ?? '';
+  const abczInitialRgn = animal.abczRgn ?? parsedTag?.rgn ?? '';
 
   const genealogyEntries = profile?.genealogy ?? [];
   const showPedigree = genealogyEntries.length > 0 && hasPedigreeTree(genealogyEntries);
@@ -168,6 +185,34 @@ export function AnimalDetailSections({
         <CardContent>
           {editing ? (
             <form className="grid gap-4 md:grid-cols-2" id="animal-edit-form">
+              <AbczLookupPanel
+                setValue={setValue as UseFormSetValue<CreateAnimalInput>}
+                fillEmptyOnly
+                initialSerie={abczInitialSerie}
+                initialRgn={abczInitialRgn}
+                getValues={() => {
+                  const v = getValues();
+                  return {
+                    tag: v.tag ?? animal.tag,
+                    name: v.name ?? animal.name ?? undefined,
+                    breed: v.breed ?? animal.breed ?? undefined,
+                    pelagem: v.pelagem ?? animal.pelagem ?? undefined,
+                    birthDate: v.birthDate ?? birthDateToInput(animal.birthDate),
+                    notes: v.notes ?? animal.notes ?? undefined,
+                    sex: v.sex ?? animal.sex,
+                    abczAnimalId: v.abczAnimalId ?? animal.abczAnimalId ?? undefined,
+                    abczSerie: v.abczSerie ?? animal.abczSerie ?? undefined,
+                    abczRgn: v.abczRgn ?? animal.abczRgn ?? undefined,
+                    abczRgd: v.abczRgd ?? animal.abczRgd ?? undefined,
+                    abczBreedCode: v.abczBreedCode ?? animal.abczBreedCode ?? undefined,
+                    abczCategoryCode:
+                      v.abczCategoryCode ?? animal.abczCategoryCode ?? undefined,
+                    abczOwnerId: v.abczOwnerId ?? animal.abczOwnerId ?? undefined,
+                    abczSourceUrl: v.abczSourceUrl ?? animal.abczSourceUrl ?? undefined,
+                  };
+                }}
+                onProfileChange={onAbczProfileChange}
+              />
               <div className="space-y-2">
                 <Label htmlFor="tag">Identificação (brinco)</Label>
                 <Input id="tag" {...register('tag')} />
@@ -180,6 +225,10 @@ export function AnimalDetailSections({
               <div className="space-y-2">
                 <Label htmlFor="breed">Raça</Label>
                 <Input id="breed" {...register('breed')} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pelagem">Pelagem</Label>
+                <Input id="pelagem" {...register('pelagem')} />
               </div>
               <div className="space-y-2">
                 <Label>Sexo</Label>
@@ -231,6 +280,10 @@ export function AnimalDetailSections({
               <DetailField label="Identificação (brinco)" value={animal.tag} />
               <DetailField label="Nome / apelido" value={animal.name} />
               <DetailField label="Raça" value={animal.breed} />
+              <DetailField
+                label="Pelagem"
+                value={animal.pelagem ?? profile?.header.coat ?? null}
+              />
               <DetailField label="Sexo" value={animalSexLabels[animal.sex]} />
               <DetailField label="Status" value={animalStatusLabels[animal.status]} />
               <DetailField
@@ -363,6 +416,12 @@ export function AnimalDetailSections({
           )}
           {profile && genealogyEntries.length > 0 && (
             <>
+              {(animal.pelagem || profile.header.coat) && (
+                <p className="text-sm">
+                  <span className="text-muted-foreground">Pelagem: </span>
+                  {animal.pelagem ?? profile.header.coat}
+                </p>
+              )}
               {profile.header.breeder && (
                 <p className="text-sm">
                   <span className="text-muted-foreground">Criador: </span>

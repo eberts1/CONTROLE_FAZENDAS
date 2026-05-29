@@ -9,6 +9,136 @@ export * from './finance-allocation.util';
 export * from './ownership-transfer.util';
 export * from './finance-labels';
 export * from './ledger-mirror.util';
+export * from './sale-map-parser.util';
+export * from './bula-remates-sale-map-parser.util';
+export * from './sale-map-import.util';
+
+export interface SaleInstallmentDto {
+  id: string;
+  planId: string;
+  sequence: number;
+  label: string;
+  amount: number;
+  dueDate: string;
+  status: import('./enums').InstallmentStatus;
+  effectiveStatus: 'ABERTA' | 'VENCIDA' | 'PAGA' | 'CANCELADA';
+  paidAt: string | null;
+  paidAmount: number | null;
+  paymentNotes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SaleInstallmentPlanDto {
+  id: string;
+  saleId: string;
+  allocationId: string | null;
+  buyerPartnerId: string;
+  auctionLotNumber: number | null;
+  netAmount: number;
+  bidValue: number | null;
+  notes: string | null;
+  installments: SaleInstallmentDto[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SaleInstallmentListItemDto extends SaleInstallmentDto {
+  plan: {
+    id: string;
+    saleId: string;
+    auctionLotNumber: number | null;
+    netAmount: number;
+    bidValue: number | null;
+  };
+  buyer: {
+    id: string;
+    name: string;
+  };
+  sale: {
+    id: string;
+    description: string;
+    animalId: string;
+    eventId: string | null;
+    animalTag: string | null;
+    animalName: string | null;
+    eventName: string | null;
+  };
+}
+
+export interface InstallmentsSummaryDto {
+  openCount: number;
+  openAmount: number;
+  overdueCount: number;
+  overdueAmount: number;
+  dueThisMonthCount: number;
+  dueThisMonthAmount: number;
+  paidCount: number;
+  paidAmount: number;
+}
+
+export interface SaleMapImportInstallmentPreview {
+  sequence: number;
+  label: string;
+  amount: number;
+  dueDate: string;
+  markAsPaid: boolean;
+  paidAt: string | null;
+}
+
+export interface SaleMapImportLotPreview {
+  tempId: string;
+  selected: boolean;
+  canal: number;
+  description: string | null;
+  registration: string | null;
+  animalId: string | null;
+  animalTag: string | null;
+  animalName: string | null;
+  createAnimal: boolean;
+  suggestedAnimalTag: string | null;
+  buyerName: string | null;
+  buyerPartnerId: string | null;
+  createBuyer: boolean;
+  bidValue: number | null;
+  captures: number;
+  quantity: number;
+  totalAmount: number | null;
+  netAmount: number | null;
+  discountAmount: number | null;
+  entryAmount: number | null;
+  isCashPayment: boolean;
+  installments: SaleMapImportInstallmentPreview[];
+  warnings: string[];
+}
+
+export interface SaleMapImportPreviewDto {
+  document: {
+    eventName: string | null;
+    eventDate: string | null;
+    location: string | null;
+    sellerName: string | null;
+    lotCount: number;
+    sourceFormat?: 'PROGRAMA_LEILOES' | 'BULA_REMATES';
+  };
+  lots: SaleMapImportLotPreview[];
+}
+
+export interface SaleMapImportResultDto {
+  imported: number;
+  skipped: number;
+  salesCreated: string[];
+  partnersCreated: string[];
+  animalsCreated: string[];
+  warnings: string[];
+}
+
+export interface SaleMapSyncInstallmentsResultDto {
+  synced: number;
+  skipped: number;
+  alreadyHasPlan: number;
+  warnings: string[];
+}
 
 export interface UserDto {
   id: string;
@@ -65,6 +195,7 @@ export interface AnimalDto {
   tag: string;
   name: string | null;
   breed: string | null;
+  pelagem: string | null;
   sex: import('./enums').AnimalSex;
   birthDate: string | null;
   status: import('./enums').AnimalStatus;
@@ -286,6 +417,7 @@ export interface FarmLedgerEntryDto {
   partnerId: string | null;
   animalSaleId: string | null;
   animalExpenseId: string | null;
+  saleInstallmentId: string | null;
   recurringTemplateId: string | null;
   payrollRunId: string | null;
   notes: string | null;

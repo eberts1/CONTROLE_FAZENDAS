@@ -10,6 +10,7 @@ import {
   Users,
   CalendarDays,
   Wallet,
+  Receipt,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -28,6 +29,7 @@ export const navLinks: NavLink[] = [
   { href: '/dashboard/animais', label: 'Animais', icon: Beef },
   { href: '/dashboard/parceiros', label: 'Parceiros', icon: Users },
   { href: '/dashboard/eventos', label: 'Eventos', icon: CalendarDays },
+  { href: '/dashboard/parcelas', label: 'Parcelas', icon: Receipt },
   { href: '/dashboard/financeiro', label: 'Financeiro', icon: Wallet },
   { href: '/dashboard/parentesco', label: 'Parentesco', icon: GitBranch },
   { href: '/dashboard/material-genetico', label: 'Material Genético', icon: Dna },
