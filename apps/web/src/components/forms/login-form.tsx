@@ -18,10 +18,24 @@ import { isAxiosError } from 'axios';
 function getLoginErrorMessage(error: unknown): string {
   if (isAxiosError(error)) {
     if (!error.response) {
+      const isLocal =
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' ||
+          window.location.hostname === '127.0.0.1' ||
+          /^192\.168\.\d+\.\d+$/.test(window.location.hostname));
+
+      if (isLocal) {
+        return 'Não foi possível conectar à API local (porta 4000). Abra o Docker Desktop, rode docker compose up -d, depois pnpm db:migrate, pnpm db:seed e reinicie pnpm dev.';
+      }
+
       return 'Não foi possível conectar à API. Verifique NEXT_PUBLIC_API_URL no Vercel e se a API está no ar.';
     }
     if (error.response.status === 401) {
-      return 'Credenciais inválidas. Use manager@controlefazendas.com / manager123 (após rodar o seed no banco de produção).';
+      const apiMessage = error.response.data?.message;
+      if (typeof apiMessage === 'string' && apiMessage.includes('bloqueada')) {
+        return apiMessage;
+      }
+      return 'Credenciais inválidas. Verifique e-mail e senha.';
     }
     if (error.response.status >= 500) {
       return 'Erro no servidor da API. Verifique DATABASE_URL, migrations e seed no ambiente da API.';

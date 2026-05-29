@@ -1,4 +1,4 @@
-import { Allow, IsArray, IsBoolean, IsEmail, IsInt, IsNumber, IsObject, IsOptional, IsString, Max, Min, MinLength, ValidateNested } from 'class-validator';
+import { Allow, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsString, Max, Min, MinLength, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -64,6 +64,19 @@ export class CreateUserDto {
   @IsString()
   @MinLength(2)
   name!: string;
+}
+
+export class AdminCreateUserDto extends CreateUserDto {
+  @ApiPropertyOptional({ enum: ['MANAGER', 'OPERATOR'] })
+  @IsOptional()
+  @IsIn(['MANAGER', 'OPERATOR'])
+  role?: 'MANAGER' | 'OPERATOR';
+}
+
+export class BlockUserDto {
+  @ApiProperty()
+  @IsBoolean()
+  blocked!: boolean;
 }
 
 export class CreateFarmDto {
@@ -513,41 +526,150 @@ export class CreatePartnerDto {
   name!: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   document?: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   email?: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   phone?: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  phone2?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  phone3?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  zipCode?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  ranchName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  ranchCity?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  ranchState?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  ranchRegistration?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   notes?: string;
 }
 
 export class UpdatePartnerDto {
   @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   @MinLength(2)
   name?: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   document?: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   email?: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   phone?: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  phone2?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  phone3?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  zipCode?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  ranchName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  ranchCity?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  ranchState?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  ranchRegistration?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   notes?: string;
 }
@@ -1635,4 +1757,124 @@ export class ImportSaleMapDto {
   @ValidateNested({ each: true })
   @Type(() => SaleMapImportLotDto)
   lots!: SaleMapImportLotDto[];
+}
+
+class PartnerImportParsedDto {
+  @ApiProperty()
+  @IsString()
+  @MinLength(2)
+  name!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  document?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  email?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  phone?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  phone2?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  phone3?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  address?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  city?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  state?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  zipCode?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  ranchName?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  ranchCity?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  ranchState?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  ranchRegistration?: string | null;
+}
+
+class PartnerImportRowDto {
+  @ApiProperty()
+  @IsString()
+  tempId!: string;
+
+  @ApiProperty()
+  @IsBoolean()
+  selected!: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  matchedPartnerId?: string | null;
+
+  @ApiProperty({ enum: ['create', 'skip', 'update'] })
+  @IsIn(['create', 'skip', 'update'])
+  action!: 'create' | 'skip' | 'update';
+
+  @ApiProperty({ type: PartnerImportParsedDto })
+  @ValidateNested()
+  @Type(() => PartnerImportParsedDto)
+  parsed!: PartnerImportParsedDto;
+}
+
+export class ImportPartnerBuyersDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  pdfPassword?: string;
+
+  @ApiProperty({ type: [PartnerImportRowDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PartnerImportRowDto)
+  rows!: PartnerImportRowDto[];
+}
+
+export class MergePartnersDto {
+  @ApiProperty()
+  @IsString()
+  keepPartnerId!: string;
+
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  mergePartnerIds!: string[];
 }

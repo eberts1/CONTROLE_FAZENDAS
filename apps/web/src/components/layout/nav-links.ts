@@ -11,6 +11,7 @@ import {
   CalendarDays,
   Wallet,
   Receipt,
+  UserCog,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -33,6 +34,10 @@ export const navLinks: NavLink[] = [
   { href: '/dashboard/financeiro', label: 'Financeiro', icon: Wallet },
   { href: '/dashboard/parentesco', label: 'Parentesco', icon: GitBranch },
   { href: '/dashboard/material-genetico', label: 'Material Genético', icon: Dna },
+];
+
+export const adminNavLinks: NavLink[] = [
+  { href: '/dashboard/usuarios', label: 'Usuários', icon: UserCog },
 ];
 
 export function isNavLinkActive(pathname: string, href: string): boolean {

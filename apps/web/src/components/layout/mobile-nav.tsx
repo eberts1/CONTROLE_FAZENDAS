@@ -9,7 +9,9 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
-import { isNavLinkActive, navLinks } from './nav-links';
+import { adminNavLinks, isNavLinkActive, navLinks } from './nav-links';
+import { useFarmContext } from '@/hooks/use-farm-context';
+import { Role } from '@controle-fazendas/shared';
 
 type MobileNavProps = {
   open: boolean;
@@ -18,6 +20,9 @@ type MobileNavProps = {
 
 export function MobileNav({ open, onOpenChange }: MobileNavProps) {
   const pathname = usePathname();
+  const { user } = useFarmContext();
+  const isAdmin = user?.role === Role.ADMIN;
+  const links = isAdmin ? [...navLinks, ...adminNavLinks] : navLinks;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -29,7 +34,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
           <SheetTitle className="text-lg font-bold text-primary">Controle Fazendas</SheetTitle>
         </SheetHeader>
         <nav className="flex flex-col gap-1 p-4">
-          {navLinks.map(({ href, label, icon: Icon }) => (
+          {links.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}

@@ -47,10 +47,11 @@ export class FarmFinancesController {
     @Param('farmId') farmId: string,
     @Query('section') section?: string,
     @Query('type') type?: string,
+    @Query('eventId') eventId?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
   ) {
-    return this.financesService.findLedger(farmId, { section, type, from, to });
+    return this.financesService.findLedger(farmId, { section, type, eventId, from, to });
   }
 
   @Post('ledger')

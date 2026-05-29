@@ -31,6 +31,18 @@ async function main() {
     },
   });
 
+  const superAdminPassword = await bcrypt.hash('matheusstw3', 12);
+  const superAdmin = await prisma.user.upsert({
+    where: { email: 'matheusstw3@gmail.com' },
+    update: { role: Role.ADMIN },
+    create: {
+      email: 'matheusstw3@gmail.com',
+      password: superAdminPassword,
+      name: 'Matheus',
+      role: Role.ADMIN,
+    },
+  });
+
   const managerPassword = await bcrypt.hash('manager123', 12);
   const manager = await prisma.user.upsert({
     where: { email: 'manager@controlefazendas.com' },
@@ -60,6 +72,18 @@ async function main() {
     update: {},
     create: {
       userId: admin.id,
+      farmId: farm.id,
+      role: FarmRole.OWNER,
+    },
+  });
+
+  await prisma.farmUser.upsert({
+    where: {
+      userId_farmId: { userId: superAdmin.id, farmId: farm.id },
+    },
+    update: {},
+    create: {
+      userId: superAdmin.id,
       farmId: farm.id,
       role: FarmRole.OWNER,
     },

@@ -39,6 +39,15 @@ export const registerSchema = z
     path: ['confirmPassword'],
   });
 
+export const adminCreateUserSchema = z.object({
+  name: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres'),
+  email: z.string().email('E-mail inválido'),
+  password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
+  role: z.enum(['MANAGER', 'OPERATOR']).optional(),
+});
+
+export type AdminCreateUserInput = z.infer<typeof adminCreateUserSchema>;
+
 export const createFarmSchema = z.object({
   name: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres'),
   location: z.string().optional(),
@@ -175,6 +184,16 @@ export const createPartnerSchema = z.object({
   document: z.string().optional(),
   email: z.string().email('E-mail inválido').optional().or(z.literal('')),
   phone: z.string().optional(),
+  phone2: z.string().optional(),
+  phone3: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zipCode: z.string().optional(),
+  ranchName: z.string().optional(),
+  ranchCity: z.string().optional(),
+  ranchState: z.string().optional(),
+  ranchRegistration: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -294,7 +313,7 @@ export const createAnimalExpenseSchema = z.object({
 
 export const updateAnimalExpenseSchema = createAnimalExpenseSchema.partial();
 
-export const createLedgerEntrySchema = z.object({
+const ledgerEntryBaseSchema = z.object({
   section: z.nativeEnum(FinanceSection),
   type: z.nativeEnum(LedgerEntryType),
   category: z.nativeEnum(LedgerCategory),
@@ -312,7 +331,21 @@ export const createLedgerEntrySchema = z.object({
   notes: z.string().optional(),
 });
 
-export const updateLedgerEntrySchema = createLedgerEntrySchema.partial();
+export const createLedgerEntrySchema = ledgerEntryBaseSchema.superRefine((data, ctx) => {
+  if (
+    data.section === FinanceSection.PECUARIA_EVENTOS &&
+    data.type === LedgerEntryType.DESPESA &&
+    !data.eventId
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Selecione o evento para despesas pecuárias',
+      path: ['eventId'],
+    });
+  }
+});
+
+export const updateLedgerEntrySchema = ledgerEntryBaseSchema.partial();
 
 export const createRecurringTemplateSchema = z.object({
   section: z.nativeEnum(FinanceSection).optional(),
@@ -422,6 +455,44 @@ export const importSaleMapSchema = z.object({
   pdfPassword: z.string().optional(),
   lots: z.array(saleMapImportLotSchema).min(1),
 });
+
+export const importPartnerBuyersSchema = z.object({
+  pdfPassword: z.string().optional(),
+  rows: z
+    .array(
+      z.object({
+        tempId: z.string().min(1),
+        selected: z.boolean(),
+        matchedPartnerId: z.string().uuid().optional().nullable(),
+        action: z.enum(['create', 'skip', 'update']),
+        parsed: z.object({
+          name: z.string().min(2),
+          document: z.string().optional().nullable(),
+          email: z.string().optional().nullable(),
+          phone: z.string().optional().nullable(),
+          phone2: z.string().optional().nullable(),
+          phone3: z.string().optional().nullable(),
+          address: z.string().optional().nullable(),
+          city: z.string().optional().nullable(),
+          state: z.string().optional().nullable(),
+          zipCode: z.string().optional().nullable(),
+          ranchName: z.string().optional().nullable(),
+          ranchCity: z.string().optional().nullable(),
+          ranchState: z.string().optional().nullable(),
+          ranchRegistration: z.string().optional().nullable(),
+        }),
+      }),
+    )
+    .min(1),
+});
+
+export const mergePartnersSchema = z.object({
+  keepPartnerId: z.string().uuid(),
+  mergePartnerIds: z.array(z.string().uuid()).min(1),
+});
+
+export type ImportPartnerBuyersInput = z.infer<typeof importPartnerBuyersSchema>;
+export type MergePartnersInput = z.infer<typeof mergePartnersSchema>;
 
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;

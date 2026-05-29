@@ -192,6 +192,8 @@ model User {
   password  String
   name      String
   role      Role     @default(OPERATOR)
+  blocked   Boolean  @default(false)
+  blockedAt DateTime?
   farms          FarmUser[]
   records        ProcessRecord[]
   stockMovements StockMovement[]
@@ -454,6 +456,16 @@ model Partner {
   document             String?
   email                String?
   phone                String?
+  phone2               String?
+  phone3               String?
+  address              String?
+  city                 String?
+  state                String?
+  zipCode              String?
+  ranchName            String?
+  ranchCity            String?
+  ranchState           String?
+  ranchRegistration    String?
   notes                String?
   farm                 Farm                      @relation(fields: [farmId], references: [id], onDelete: Cascade)
   ownerships           AnimalOwnership[]

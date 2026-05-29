@@ -8,10 +8,14 @@ import {
   CreatePayrollRunInput,
   CreateRecurringTemplateInput,
   EmployeeDto,
+  FarmEventDto,
+  FarmEventStatus,
   FarmFinanceSummaryDto,
   FarmLedgerEntryDto,
   FinanceSection,
+  LedgerCategory,
   LedgerEntryType,
+  LedgerScope,
   LedgerSource,
   PayrollRunDto,
   RecurringLedgerTemplateDto,
@@ -26,6 +30,7 @@ import {
   ledgerCategoryLabels,
   ledgerEntryTypeLabels,
 } from '@controle-fazendas/shared';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -47,6 +52,20 @@ import { PageHeader } from '@/components/layout/page-header';
 import { formatCurrency, formatDateOnly } from '@/lib/utils';
 
 const SECTIONS = Object.values(FinanceSection);
+
+const RECEITA_CATEGORIES = new Set<LedgerCategory>([
+  LedgerCategory.VENDA_ANIMAL,
+  LedgerCategory.VENDA_GENETICO,
+  LedgerCategory.OUTRA_RECEITA,
+]);
+
+function categoriesForEntry(section: FinanceSection, type: LedgerEntryType): LedgerCategory[] {
+  const all = categoriesBySection[section];
+  if (section !== FinanceSection.PECUARIA_EVENTOS) return all;
+  return type === LedgerEntryType.RECEITA
+    ? all.filter((c) => RECEITA_CATEGORIES.has(c))
+    : all.filter((c) => !RECEITA_CATEGORIES.has(c));
+}
 
 const payrollStatusLabels: Record<string, string> = {
   RASCUNHO: 'Rascunho',
@@ -104,6 +123,8 @@ export default function FinanceiroPage() {
     queryClient.invalidateQueries({ queryKey: ['finance-recurring', activeFarmId] });
     queryClient.invalidateQueries({ queryKey: ['finance-employees', activeFarmId] });
     queryClient.invalidateQueries({ queryKey: ['finance-payroll', activeFarmId] });
+    queryClient.invalidateQueries({ queryKey: ['farm-event-summary', activeFarmId] });
+    queryClient.invalidateQueries({ queryKey: ['farm-event-expenses', activeFarmId] });
   };
 
   if (!activeFarmId) {
@@ -187,9 +208,10 @@ export default function FinanceiroPage() {
             {section === FinanceSection.PECUARIA_EVENTOS && (
               <Card>
                 <CardContent className="pt-4 text-sm text-muted-foreground">
-                  Receitas e despesas de animais/eventos entram aqui automaticamente ao registrar vendas e
-                  despesas na ficha do animal ou no evento. Use as outras seções para lançamentos que não
-                  passam pelo rebanho.
+                  Vendas e despesas na ficha do animal ou no evento entram aqui automaticamente. Para custos
+                  do evento sem animal vinculado (transporte, comissão, estrutura etc.), use{' '}
+                  <strong>Novo lançamento</strong> e selecione o evento — assim o total de despesas do evento
+                  fica consolidado.
                 </CardContent>
               </Card>
             )}
@@ -263,6 +285,17 @@ function LedgerList({
                 {ledgerEntryTypeLabels[e.type]} · {ledgerCategoryLabels[e.category]} ·{' '}
                 {formatDateOnly(e.entryDate)}
                 {e.source !== LedgerSource.MANUAL && ' · automático'}
+                {e.event && (
+                  <>
+                    {' · '}
+                    <Link
+                      href={`/dashboard/eventos/${e.event.id}`}
+                      className="text-primary hover:underline"
+                    >
+                      {e.event.name}
+                    </Link>
+                  </>
+                )}
               </p>
             </div>
             <div className="text-right">
@@ -303,13 +336,29 @@ function LedgerEntryForm({
 }) {
   const { toast } = useToast();
   const [type, setType] = useState<LedgerEntryType>(LedgerEntryType.DESPESA);
-  const [category, setCategory] = useState(categoriesBySection[section][0]);
+  const [category, setCategory] = useState(
+    categoriesForEntry(section, LedgerEntryType.DESPESA)[0],
+  );
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
   const [entryDate, setEntryDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState('');
+  const [eventId, setEventId] = useState('');
 
-  const categories = categoriesBySection[section];
+  const linkToEvent = section === FinanceSection.PECUARIA_EVENTOS;
+
+  const { data: events = [] } = useQuery({
+    queryKey: ['farm-events', farmId],
+    queryFn: async () => {
+      const { data } = await api.get<FarmEventDto[]>(`/farms/${farmId}/events`);
+      return data;
+    },
+    enabled: linkToEvent,
+  });
+
+  const activeEvents = events.filter((e) => e.status !== FarmEventStatus.CANCELADO);
+
+  const categories = categoriesForEntry(section, type);
 
   const mutation = useMutation({
     mutationFn: async (input: CreateLedgerEntryInput) => {
@@ -331,6 +380,15 @@ function LedgerEntryForm({
     },
   });
 
+  const handleTypeChange = (next: LedgerEntryType) => {
+    setType(next);
+    const nextCategories = categoriesForEntry(section, next);
+    if (!nextCategories.includes(category)) {
+      setCategory(nextCategories[0]);
+    }
+    if (next === LedgerEntryType.RECEITA) setEventId('');
+  };
+
   const submit = () => {
     const payload = {
       section,
@@ -340,6 +398,12 @@ function LedgerEntryForm({
       amount: amount === '' ? 0 : amount,
       entryDate,
       notes: notes || undefined,
+      ...(linkToEvent && type === LedgerEntryType.DESPESA && eventId
+        ? { eventId, scope: LedgerScope.EVENTO }
+        : {}),
+      ...(linkToEvent && type === LedgerEntryType.RECEITA && eventId
+        ? { eventId, scope: LedgerScope.EVENTO }
+        : {}),
     };
     const parsed = createLedgerEntrySchema.safeParse(payload);
     if (!parsed.success) {
@@ -357,7 +421,7 @@ function LedgerEntryForm({
       <CardContent className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label>Tipo</Label>
-          <Select value={type} onValueChange={(v) => setType(v as LedgerEntryType)}>
+          <Select value={type} onValueChange={(v) => handleTypeChange(v as LedgerEntryType)}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -370,6 +434,53 @@ function LedgerEntryForm({
             </SelectContent>
           </Select>
         </div>
+        {linkToEvent && type === LedgerEntryType.DESPESA && (
+          <div className="space-y-2">
+            <Label>Evento</Label>
+            <Select value={eventId || undefined} onValueChange={setEventId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o evento" />
+              </SelectTrigger>
+              <SelectContent>
+                {activeEvents.length === 0 ? (
+                  <SelectItem value="__none" disabled>
+                    Nenhum evento cadastrado
+                  </SelectItem>
+                ) : (
+                  activeEvents.map((ev) => (
+                    <SelectItem key={ev.id} value={ev.id}>
+                      {ev.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Obrigatório para controlar despesas por evento.
+            </p>
+          </div>
+        )}
+        {linkToEvent && type === LedgerEntryType.RECEITA && activeEvents.length > 0 && (
+          <div className="space-y-2">
+            <Label>Evento (opcional)</Label>
+            <Select
+              value={eventId || '__none'}
+              onValueChange={(v) => setEventId(v === '__none' ? '' : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Sem vínculo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">Sem vínculo</SelectItem>
+                {activeEvents.map((ev) => (
+                  <SelectItem key={ev.id} value={ev.id}>
+                    {ev.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="space-y-2">
           <Label>Categoria</Label>
           <Select value={category} onValueChange={(v) => setCategory(v as typeof category)}>

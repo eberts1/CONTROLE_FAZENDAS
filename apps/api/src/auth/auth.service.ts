@@ -28,6 +28,10 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais inválidas');
     }
 
+    if (user.blocked) {
+      throw new UnauthorizedException('Conta bloqueada. Contate o administrador.');
+    }
+
     const valid = await bcrypt.compare(dto.password, user.password);
     if (!valid) {
       throw new UnauthorizedException('Credenciais inválidas');
@@ -102,8 +106,19 @@ export class AuthService {
       const payload = this.jwtService.verify(refreshToken, {
         secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
       });
-      return this.generateTokens(payload.sub, payload.email, payload.role);
-    } catch {
+
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+        select: { id: true, email: true, role: true, blocked: true },
+      });
+
+      if (!user || user.blocked) {
+        throw new UnauthorizedException('Sessão inválida');
+      }
+
+      return this.generateTokens(user.id, user.email, user.role);
+    } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
       throw new UnauthorizedException('Refresh token inválido');
     }
   }
@@ -117,6 +132,10 @@ export class AuthService {
     });
 
     if (!user) throw new UnauthorizedException();
+
+    if (user.blocked) {
+      throw new UnauthorizedException('Conta bloqueada. Contate o administrador.');
+    }
 
     const farms =
       user.role === 'ADMIN'
@@ -146,12 +165,20 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  private sanitizeUser(user: { id: string; email: string; name: string; role: string; createdAt: Date }) {
+  private sanitizeUser(user: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    blocked?: boolean;
+    createdAt: Date;
+  }) {
     return {
       id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
+      blocked: user.blocked ?? false,
       createdAt: user.createdAt.toISOString(),
     };
   }

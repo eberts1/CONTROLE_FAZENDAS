@@ -9,7 +9,12 @@ import {
   FarmEventSaleListItemDto,
   FarmEventStatus,
   FarmEventSummaryDto,
-  FarmEventType,
+  FarmLedgerEntryDto,
+  FinanceSection,
+  LedgerEntryType,
+  LedgerSource,
+  ledgerCategoryLabels,
+  ledgerEntryTypeLabels,
 } from '@controle-fazendas/shared';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -69,6 +74,24 @@ export default function EventoDetailPage() {
     enabled: !!activeFarmId && !!eventId,
   });
 
+  const { data: eventExpenses = [] } = useQuery({
+    queryKey: ['farm-event-expenses', activeFarmId, eventId],
+    queryFn: async () => {
+      const { data } = await api.get<FarmLedgerEntryDto[]>(
+        `/farms/${activeFarmId}/finances/ledger`,
+        {
+          params: {
+            eventId,
+            type: LedgerEntryType.DESPESA,
+            section: FinanceSection.PECUARIA_EVENTOS,
+          },
+        },
+      );
+      return data;
+    },
+    enabled: !!activeFarmId && !!eventId,
+  });
+
   const statusMutation = useMutation({
     mutationFn: async (status: FarmEventStatus) => {
       const { data } = await api.patch<FarmEventDto>(
@@ -118,14 +141,22 @@ export default function EventoDetailPage() {
       />
 
       {summary && (
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Receitas</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total vendido</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">{formatCurrency(summary.totalSales)}</p>
-              <p className="text-xs text-muted-foreground">{summary.salesCount} venda(s)</p>
+              <p className="text-2xl font-bold">{summary.salesCount}</p>
+              <p className="text-xs text-muted-foreground">animais/lotes</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Receita</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-green-600">{formatCurrency(summary.totalSales)}</p>
             </CardContent>
           </Card>
           <Card>
@@ -133,19 +164,53 @@ export default function EventoDetailPage() {
               <CardTitle className="text-sm font-medium text-muted-foreground">Despesas</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">{formatCurrency(summary.totalExpenses)}</p>
-              <p className="text-xs text-muted-foreground">{summary.expensesCount} lançamento(s)</p>
+              <p className="text-2xl font-bold text-red-600">{formatCurrency(summary.totalExpenses)}</p>
+              <p className="text-xs text-muted-foreground">
+                {summary.expensesCount} lançamento(s)
+              </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Resultado</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Recebido</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">{formatCurrency(summary.balance)}</p>
+              <p className="text-2xl font-bold text-emerald-600">{formatCurrency(summary.totalReceived)}</p>
+              <p className="text-xs text-muted-foreground">
+                A receber: {formatCurrency(summary.openReceivable)}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Lucro</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p
+                className={`text-2xl font-bold ${summary.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}
+              >
+                {formatCurrency(summary.balance)}
+              </p>
+              <p className="text-xs text-muted-foreground">receita − despesas</p>
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {summary && summary.auctionLotNumbers.length > 0 && (
+        <Card>
+          <CardContent className="flex flex-wrap items-center gap-2 pt-4">
+            <span className="text-sm font-medium text-muted-foreground">Lotes do leilão:</span>
+            {summary.auctionLotNumbers.map((lot) => (
+              <span
+                key={lot}
+                className="rounded-md bg-muted px-2 py-0.5 text-sm font-medium tabular-nums"
+              >
+                {lot}
+              </span>
+            ))}
+          </CardContent>
+        </Card>
       )}
 
       {(event.location || event.organizer || event.startDate) && (
@@ -208,6 +273,36 @@ export default function EventoDetailPage() {
           }}
         />
       )}
+
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold">Despesas do evento</h2>
+          <Link
+            href="/dashboard/financeiro"
+            className="text-sm text-primary hover:underline"
+          >
+            Lançar despesa no financeiro
+          </Link>
+        </div>
+        {eventExpenses.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nenhuma despesa vinculada. Registre custos em Financeiro → Pecuária e eventos.
+          </p>
+        ) : (
+          eventExpenses.map((expense) => (
+            <Card key={expense.id}>
+              <CardHeader className="py-4">
+                <CardTitle className="text-base">{expense.description}</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {ledgerEntryTypeLabels[expense.type]} · {ledgerCategoryLabels[expense.category]} ·{' '}
+                  {formatCurrency(expense.amount)} · {formatDateOnly(expense.entryDate)}
+                  {expense.source !== LedgerSource.MANUAL && ' · automático'}
+                </p>
+              </CardHeader>
+            </Card>
+          ))
+        )}
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Vendas do evento</h2>

@@ -6,10 +6,11 @@ import { useState } from 'react';
 import {
   createFarmEventSchema,
   CreateFarmEventInput,
-  FarmEventDto,
+  FarmEventListItemDto,
   FarmEventStatus,
   FarmEventType,
 } from '@controle-fazendas/shared';
+import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,8 +30,137 @@ import { PageHeader } from '@/components/layout/page-header';
 import {
   farmEventStatusLabels,
   farmEventTypeLabels,
+  formatCurrency,
   formatDateOnly,
+  cn,
 } from '@/lib/utils';
+
+function EventCard({ event }: { event: FarmEventListItemDto }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <Card className="overflow-hidden transition-colors hover:bg-accent/30">
+      <CardHeader className="pb-3">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0 space-y-1">
+            <Link href={`/dashboard/eventos/${event.id}`} className="hover:underline">
+              <CardTitle className="text-base">{event.name}</CardTitle>
+            </Link>
+            <p className="text-sm text-muted-foreground">
+              {farmEventTypeLabels[event.type]} · {farmEventStatusLabels[event.status]}
+              {event.startDate && ` · ${formatDateOnly(event.startDate)}`}
+              {event.location && ` · ${event.location}`}
+            </p>
+          </div>
+          <Link
+            href={`/dashboard/eventos/${event.id}`}
+            className="text-sm text-primary hover:underline"
+          >
+            Abrir evento
+          </Link>
+        </div>
+
+        {event.auctionLotNumbers.length > 0 && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Lotes:</span>
+            {event.auctionLotNumbers.map((lot) => (
+              <span
+                key={lot}
+                className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium tabular-nums"
+              >
+                {lot}
+              </span>
+            ))}
+          </div>
+        )}
+      </CardHeader>
+
+      <CardContent className="space-y-3 pb-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Metric label="Total vendido" value={String(event.salesCount)} hint="animais/lotes" />
+          <Metric label="Receita" value={formatCurrency(event.totalSales)} valueClass="text-green-600" />
+          <Metric label="Despesas" value={formatCurrency(event.totalExpenses)} valueClass="text-red-600" />
+          <Metric label="Recebido" value={formatCurrency(event.totalReceived)} valueClass="text-emerald-600" />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setExpanded((open) => !open)}
+          className="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition-colors hover:bg-muted/50"
+        >
+          <span className="font-medium">Recebimentos e lucro</span>
+          <ChevronDown
+            className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', expanded && 'rotate-180')}
+          />
+        </button>
+
+        {expanded && (
+          <div className="space-y-3 rounded-lg border bg-muted/30 p-3 text-sm">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Row label="Receita total" value={formatCurrency(event.totalSales)} />
+              <Row label="Despesas" value={formatCurrency(event.totalExpenses)} />
+              <Row
+                label="Lucro (receita − despesas)"
+                value={formatCurrency(event.balance)}
+                valueClass={event.balance >= 0 ? 'text-green-600' : 'text-red-600'}
+              />
+              <Row label="Recebido" value={formatCurrency(event.totalReceived)} valueClass="text-emerald-600" />
+              <Row label="A receber" value={formatCurrency(event.openReceivable)} />
+              <Row label="Vendas registradas" value={String(event.salesCount)} />
+            </div>
+            {event.auctionLotNumbers.length > 0 && (
+              <p className="text-muted-foreground">
+                Lotes do leilão: {event.auctionLotNumbers.join(', ')}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/dashboard/eventos/${event.id}`}>Ver vendas e despesas</Link>
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  hint,
+  valueClass,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  valueClass?: string;
+}) {
+  return (
+    <div className="rounded-lg border bg-background px-3 py-2">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={cn('text-sm font-semibold tabular-nums', valueClass)}>{value}</p>
+      {hint && <p className="text-[10px] text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+function Row({
+  label,
+  value,
+  valueClass,
+}: {
+  label: string;
+  value: string;
+  valueClass?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={cn('font-medium tabular-nums', valueClass)}>{value}</span>
+    </div>
+  );
+}
 
 export default function EventosPage() {
   const { activeFarmId } = useFarmContext();
@@ -50,7 +180,7 @@ export default function EventosPage() {
   const { data: events = [], isLoading } = useQuery({
     queryKey: ['farm-events', activeFarmId],
     queryFn: async () => {
-      const { data } = await api.get<FarmEventDto[]>(`/farms/${activeFarmId}/events`);
+      const { data } = await api.get<FarmEventListItemDto[]>(`/farms/${activeFarmId}/events`);
       return data;
     },
     enabled: !!activeFarmId,
@@ -58,7 +188,7 @@ export default function EventosPage() {
 
   const createMutation = useMutation({
     mutationFn: async (input: CreateFarmEventInput) => {
-      const { data } = await api.post<FarmEventDto>(`/farms/${activeFarmId}/events`, input);
+      const { data } = await api.post<FarmEventListItemDto>(`/farms/${activeFarmId}/events`, input);
       return data;
     },
     onSuccess: () => {
@@ -213,18 +343,7 @@ export default function EventosPage() {
       ) : (
         <div className="space-y-3">
           {events.map((event) => (
-            <Link key={event.id} href={`/dashboard/eventos/${event.id}`} className="block">
-              <Card className="transition-colors hover:bg-accent/50">
-                <CardHeader className="py-4">
-                  <CardTitle className="text-base">{event.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    {farmEventTypeLabels[event.type]} · {farmEventStatusLabels[event.status]}
-                    {event.startDate && ` · ${formatDateOnly(event.startDate)}`}
-                    {event.location && ` · ${event.location}`}
-                  </p>
-                </CardHeader>
-              </Card>
-            </Link>
+            <EventCard key={event.id} event={event} />
           ))}
         </div>
       )}

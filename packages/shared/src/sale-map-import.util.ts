@@ -197,6 +197,14 @@ export function matchPartnerByName<
   );
 }
 
+export { matchPartner, resolveImportAction, parsedBuyerToPartnerFields } from './partner-match.util';
+export type {
+  PartnerMatchResult,
+  PartnerImportAction,
+  PartnerFieldFill,
+  PartnerFillableField,
+} from './partner-match.util';
+
 export function buildDefaultInstallmentPaidFlags(
   installments: Array<{ dueDate: string }>,
   referenceDate = new Date(),

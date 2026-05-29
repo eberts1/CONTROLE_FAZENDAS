@@ -176,3 +176,9 @@ export enum PayrollRunStatus {
   FECHADO = 'FECHADO',
   PAGO = 'PAGO',
 }
+
+export const roleLabels: Record<Role, string> = {
+  [Role.ADMIN]: 'Administrador',
+  [Role.MANAGER]: 'Gerente',
+  [Role.OPERATOR]: 'Operador',
+};

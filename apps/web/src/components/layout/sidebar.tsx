@@ -3,10 +3,15 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { isNavLinkActive, navLinks } from './nav-links';
+import { adminNavLinks, isNavLinkActive, navLinks } from './nav-links';
+import { useFarmContext } from '@/hooks/use-farm-context';
+import { Role } from '@controle-fazendas/shared';
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { user } = useFarmContext();
+  const isAdmin = user?.role === Role.ADMIN;
+  const links = isAdmin ? [...navLinks, ...adminNavLinks] : navLinks;
 
   return (
     <aside className="hidden w-64 shrink-0 border-r bg-card md:flex md:flex-col">
@@ -14,7 +19,7 @@ export function Sidebar() {
         <span className="text-lg font-bold text-primary">Controle Fazendas</span>
       </div>
       <nav className="flex flex-1 flex-col gap-1 p-4">
-        {navLinks.map(({ href, label, icon: Icon }) => (
+        {links.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}

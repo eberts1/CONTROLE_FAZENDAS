@@ -12,6 +12,10 @@ export * from './ledger-mirror.util';
 export * from './sale-map-parser.util';
 export * from './bula-remates-sale-map-parser.util';
 export * from './sale-map-import.util';
+export * from './partner-document.util';
+export * from './bula-buyer-list-parser.util';
+export * from './partner-match.util';
+export * from './partner-duplicate.util';
 
 export interface SaleInstallmentDto {
   id: string;
@@ -140,12 +144,120 @@ export interface SaleMapSyncInstallmentsResultDto {
   warnings: string[];
 }
 
+export interface PartnerImportRowPreview {
+  tempId: string;
+  selected: boolean;
+  parsed: {
+    name: string;
+    document: string | null;
+    email: string | null;
+    phone: string | null;
+    phone2: string | null;
+    phone3: string | null;
+    address: string | null;
+    city: string | null;
+    state: string | null;
+    zipCode: string | null;
+    ranchName: string | null;
+    ranchCity: string | null;
+    ranchState: string | null;
+    ranchRegistration: string | null;
+    rawBlock: string;
+  };
+  matchedPartnerId: string | null;
+  matchedPartnerName: string | null;
+  matchType: import('./partner-match.util').PartnerMatchType | null;
+  action: import('./partner-match.util').PartnerImportAction;
+  fieldsToFill: import('./partner-match.util').PartnerFieldFill[];
+}
+
+export interface PartnerImportPreviewDto {
+  document: {
+    title: string | null;
+    buyerCount: number;
+    sourceFormat: 'BULA_BUYER_LIST';
+  };
+  rows: PartnerImportRowPreview[];
+}
+
+export interface PartnerImportResultDto {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+}
+
+export interface PartnerLinkCounts {
+  ownerships: number;
+  salesAsBuyer: number;
+  installmentPlans: number;
+  saleAllocations: number;
+  expenseAllocations: number;
+  ledgerEntries: number;
+  salesAsSeller: number;
+  total: number;
+}
+
+export interface PartnerDuplicateEntryDto extends PartnerDto {
+  linkCounts: PartnerLinkCounts;
+}
+
+export interface PartnerDuplicateGroupDto {
+  groupId: string;
+  reason: import('./partner-duplicate.util').DuplicateGroupReason;
+  confidence: 'high' | 'medium';
+  reviewRequired: boolean;
+  suggestedKeepId: string;
+  partners: PartnerDuplicateEntryDto[];
+}
+
+export interface PartnerMergeResultDto {
+  keptPartnerId: string;
+  mergedPartnerIds: string[];
+  fieldsFilled: string[];
+}
+
+export interface PartnerPurchaseItemDto {
+  id: string;
+  description: string;
+  totalAmount: number;
+  transactionDate: string;
+  type: import('./enums').AnimalSaleType;
+  applyOwnershipTransfer: boolean;
+  quotaPercent: number | null;
+  animalTag: string | null;
+  animalName: string | null;
+  eventName: string | null;
+}
+
+export interface PartnerFinancialSummaryDto {
+  totalRevenue: number;
+  totalExpense: number;
+  balance: number;
+}
+
+export interface PartnerDetailDto {
+  partner: PartnerDto;
+  linkCounts: PartnerLinkCounts;
+  purchases: PartnerPurchaseItemDto[];
+  installmentsSummary: InstallmentsSummaryDto;
+  installments: SaleInstallmentListItemDto[];
+  ledgerEntries: FarmLedgerEntryDto[];
+  financialSummary: PartnerFinancialSummaryDto;
+}
+
 export interface UserDto {
   id: string;
   email: string;
   name: string;
   role: import('./enums').Role;
+  blocked?: boolean;
+  blockedAt?: string | null;
   createdAt: string;
+}
+
+export interface ResetPasswordResultDto {
+  temporaryPassword: string;
 }
 
 export interface FarmDto {
@@ -226,6 +338,16 @@ export interface PartnerDto {
   document: string | null;
   email: string | null;
   phone: string | null;
+  phone2: string | null;
+  phone3: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zipCode: string | null;
+  ranchName: string | null;
+  ranchCity: string | null;
+  ranchState: string | null;
+  ranchRegistration: string | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -278,7 +400,21 @@ export interface FarmEventSummaryDto {
   totalSales: number;
   expensesCount: number;
   totalExpenses: number;
+  totalReceived: number;
+  openReceivable: number;
   balance: number;
+  auctionLotNumbers: number[];
+}
+
+export interface FarmEventListItemDto extends FarmEventDto {
+  salesCount: number;
+  totalSales: number;
+  expensesCount: number;
+  totalExpenses: number;
+  totalReceived: number;
+  openReceivable: number;
+  balance: number;
+  auctionLotNumbers: number[];
 }
 
 export interface AnimalSaleDto {
@@ -411,6 +547,7 @@ export interface FarmLedgerEntryDto {
   dueDate: string | null;
   paidAt: string | null;
   eventId: string | null;
+  event?: Pick<FarmEventDto, 'id' | 'name' | 'type' | 'status'>;
   animalId: string | null;
   areaId: string | null;
   employeeId: string | null;

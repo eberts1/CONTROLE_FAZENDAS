@@ -42,34 +42,37 @@ import { decimalToNumber, toDecimal } from '../common/decimal.util';
 export class FarmFinancesService {
   constructor(private prisma: PrismaService) {}
 
-  private ledgerToDto(row: {
-    id: string;
-    farmId: string;
-    section: FinanceSection;
-    type: LedgerEntryType;
-    category: LedgerCategory;
-    scope: LedgerScope;
-    source: LedgerSource;
-    description: string;
-    amount: Prisma.Decimal;
-    entryDate: Date;
-    dueDate: Date | null;
-    paidAt: Date | null;
-    eventId: string | null;
-    animalId: string | null;
-    areaId: string | null;
-    employeeId: string | null;
-    partnerId: string | null;
-    animalSaleId: string | null;
-    animalExpenseId: string | null;
-    saleInstallmentId: string | null;
-    recurringTemplateId: string | null;
-    payrollRunId: string | null;
-    notes: string | null;
-    createdById: string;
-    createdAt: Date;
-    updatedAt: Date;
-  }): FarmLedgerEntryDto {
+  private ledgerToDto(
+    row: {
+      id: string;
+      farmId: string;
+      section: FinanceSection;
+      type: LedgerEntryType;
+      category: LedgerCategory;
+      scope: LedgerScope;
+      source: LedgerSource;
+      description: string;
+      amount: Prisma.Decimal;
+      entryDate: Date;
+      dueDate: Date | null;
+      paidAt: Date | null;
+      eventId: string | null;
+      animalId: string | null;
+      areaId: string | null;
+      employeeId: string | null;
+      partnerId: string | null;
+      animalSaleId: string | null;
+      animalExpenseId: string | null;
+      saleInstallmentId: string | null;
+      recurringTemplateId: string | null;
+      payrollRunId: string | null;
+      notes: string | null;
+      createdById: string;
+      createdAt: Date;
+      updatedAt: Date;
+    },
+    event?: { id: string; name: string; type: string; status: string } | null,
+  ): FarmLedgerEntryDto {
     return {
       id: row.id,
       farmId: row.farmId,
@@ -97,7 +100,35 @@ export class FarmFinancesService {
       createdById: row.createdById,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
+      ...(event
+        ? {
+            event: {
+              id: event.id,
+              name: event.name,
+              type: event.type as NonNullable<FarmLedgerEntryDto['event']>['type'],
+              status: event.status as NonNullable<FarmLedgerEntryDto['event']>['status'],
+            },
+          }
+        : {}),
     };
+  }
+
+  private async ensureEvent(farmId: string, eventId: string) {
+    const event = await this.prisma.farmEvent.findFirst({
+      where: { id: eventId, farmId },
+    });
+    if (!event) throw new BadRequestException('Evento não encontrado');
+    return event;
+  }
+
+  private resolveLedgerScope(dto: CreateLedgerEntryDto | UpdateLedgerEntryDto): LedgerScope | undefined {
+    if (dto.scope) return dto.scope as LedgerScope;
+    if (dto.eventId && dto.animalId) return LedgerScope.ANIMAL_EVENTO;
+    if (dto.eventId) return LedgerScope.EVENTO;
+    if (dto.animalId) return LedgerScope.ANIMAL;
+    if (dto.areaId) return LedgerScope.AREA;
+    if (dto.employeeId) return LedgerScope.FUNCIONARIO;
+    return undefined;
   }
 
   private employeeToDto(row: {
@@ -197,6 +228,7 @@ export class FarmFinancesService {
     query: {
       section?: string;
       type?: string;
+      eventId?: string;
       from?: string;
       to?: string;
     },
@@ -205,23 +237,27 @@ export class FarmFinancesService {
     const rows = await this.prisma.farmLedgerEntry.findMany({
       where: {
         farmId,
-        entryDate: { gte: start, lte: end },
+        ...(!query.eventId ? { entryDate: { gte: start, lte: end } } : {}),
         ...(query.section ? { section: query.section as FinanceSection } : {}),
         ...(query.type ? { type: query.type as LedgerEntryType } : {}),
+        ...(query.eventId ? { eventId: query.eventId } : {}),
       },
+      include: { event: { select: { id: true, name: true, type: true, status: true } } },
       orderBy: { entryDate: 'desc' },
     });
-    return rows.map((r) => this.ledgerToDto(r));
+    return rows.map((r) => this.ledgerToDto(r, r.event));
   }
 
   async createLedger(farmId: string, dto: CreateLedgerEntryDto, user: AuthUser) {
+    if (dto.eventId) await this.ensureEvent(farmId, dto.eventId);
+    const scope = this.resolveLedgerScope(dto) ?? LedgerScope.FAZENDA;
     const row = await this.prisma.farmLedgerEntry.create({
       data: {
         farmId,
         section: dto.section as FinanceSection,
         type: dto.type as LedgerEntryType,
         category: dto.category as LedgerCategory,
-        scope: (dto.scope as LedgerScope | undefined) ?? LedgerScope.FAZENDA,
+        scope,
         source: LedgerSource.MANUAL,
         description: dto.description,
         amount: toDecimal(dto.amount)!,
@@ -236,8 +272,9 @@ export class FarmFinancesService {
         notes: dto.notes,
         createdById: user.id,
       },
+      include: { event: { select: { id: true, name: true, type: true, status: true } } },
     });
-    return this.ledgerToDto(row);
+    return this.ledgerToDto(row, row.event);
   }
 
   async updateLedger(farmId: string, id: string, dto: UpdateLedgerEntryDto) {
@@ -248,13 +285,22 @@ export class FarmFinancesService {
     if (existing.source !== LedgerSource.MANUAL) {
       throw new BadRequestException('Somente lançamentos manuais podem ser editados');
     }
+    if (dto.eventId) await this.ensureEvent(farmId, dto.eventId);
+    const scope =
+      this.resolveLedgerScope({
+        scope: dto.scope,
+        eventId: dto.eventId ?? existing.eventId ?? undefined,
+        animalId: dto.animalId ?? existing.animalId ?? undefined,
+        areaId: dto.areaId ?? existing.areaId ?? undefined,
+        employeeId: dto.employeeId ?? existing.employeeId ?? undefined,
+      }) ?? existing.scope;
     const row = await this.prisma.farmLedgerEntry.update({
       where: { id },
       data: {
         section: dto.section as FinanceSection | undefined,
         type: dto.type as LedgerEntryType | undefined,
         category: dto.category as LedgerCategory | undefined,
-        scope: dto.scope as LedgerScope | undefined,
+        scope: dto.scope != null || dto.eventId != null ? scope : undefined,
         description: dto.description,
         amount: dto.amount != null ? toDecimal(dto.amount)! : undefined,
         entryDate: dto.entryDate ? new Date(dto.entryDate) : undefined,
@@ -267,8 +313,9 @@ export class FarmFinancesService {
         partnerId: dto.partnerId,
         notes: dto.notes,
       },
+      include: { event: { select: { id: true, name: true, type: true, status: true } } },
     });
-    return this.ledgerToDto(row);
+    return this.ledgerToDto(row, row.event);
   }
 
   async removeLedger(farmId: string, id: string) {
